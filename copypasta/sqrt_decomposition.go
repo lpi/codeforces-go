@@ -22,6 +22,7 @@ import (
 
 https://codeforces.com/problemset/problem/425/D
 https://codeforces.com/problemset/problem/677/D
+https://codeforces.com/problemset/problem/1207/F
 https://codeforces.com/problemset/problem/1468/M 或四元环
 LCP16 https://leetcode-cn.com/problems/you-le-yuan-de-you-lan-ji-hua/
 */
@@ -41,6 +42,7 @@ https://oi-wiki.org/ds/block-array/
 【推荐】https://www.luogu.com.cn/blog/220037/Sqrt1
 浅谈基础根号算法——分块 https://www.luogu.com.cn/blog/deco/qian-tan-ji-chu-gen-hao-suan-fa-fen-kuai
 todo https://www.csie.ntu.edu.tw/~sprout/algo2018/ppt_pdf/root_methods.pdf
+【都是我对数据结构的爱啊】区间 rank 的 N 种解法，你都会了吗 https://www.luogu.com.cn/blog/Peterprpr/HunterNoHorse
 
 题目推荐 https://cp-algorithms.com/data_structures/sqrt_decomposition.html#toc-tgt-8
 好题 https://codeforces.com/problemset/problem/91/E
@@ -50,20 +52,7 @@ todo https://www.luogu.com.cn/problem/P3396
  https://codeforces.com/problemset/problem/1207/F
  https://codeforces.com/contest/455/problem/D
 */
-func sqrtDecompositionCollections() {
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
-	max := func(a, b int) int {
-		if a > b {
-			return a
-		}
-		return b
-	}
-
+func _(min, max func(int, int) int) {
 	type block struct {
 		l, r           int // [l,r]
 		origin, sorted []int

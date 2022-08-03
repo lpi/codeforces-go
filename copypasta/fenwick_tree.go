@@ -6,7 +6,12 @@ import "sort"
 https://en.wikipedia.org/wiki/Fenwick_tree
 树状数组的基本用途是维护序列的前缀和
 tree[i] = a[i-lowbit(i)+1] + ... + a[i]
-可以看做是一个删去了右儿子的线段树
+看图 https://oi-wiki.org/ds/fenwick/
+更新 a[i] 的时候，会首先更新最下面的包含 a[i] 的 tree[i]，然后逐渐往上，更新包含这个元素的 tree[i]
+这些节点（下标）都在 i 后面，所以更新的时候是从小往大算
+计算某个前缀的时候，需要拆分区间，先把最右边的 arr[i-lowbit(i)+1] + ... + arr[i] 算出来，然后再去掉 i 最低位，算下一个区间
+所以计算前缀是从大往小算
+这里从小往大和从大往小说的是 i 的变化
 
 推荐阅读《算法竞赛进阶指南》0x42 节
 https://oi-wiki.org/ds/bit/
@@ -17,20 +22,21 @@ https://algs4.cs.princeton.edu/code/edu/princeton/cs/algs4/FenwickTree.java.html
 
 模板题 https://www.luogu.com.cn/problem/P3374
 逆序对 https://codeforces.com/edu/course/2/lesson/4/3/practice/contest/274545/problem/A https://leetcode-cn.com/problems/shu-zu-zhong-de-ni-xu-dui-lcof/
-经典技巧: 元素值和下标双变量的题目，转换成元素排序后对下标的操作（元素大小相等时下标大的在前）
-    https://codeforces.com/problemset/problem/629/D
 静态区间种类 - 离线做法
     https://www.luogu.com.cn/problem/P1972
     https://atcoder.jp/contests/abc174/tasks/abc174_f
     https://codeforces.com/problemset/problem/246/E
 题目推荐 https://cp-algorithms.com/data_structures/fenwick.html#toc-tgt-12
-EXTRA: 树状数组的性质能使其支持动态 [1,r] 范围上的最值更新查询等操作 https://codeforces.com/problemset/problem/629/D
+树状数组的性质能使其支持动态 [1,x] 或 [x,n] 范围上的最值更新查询等操作
+    https://codeforces.com/problemset/problem/629/D
+    https://codeforces.com/problemset/problem/1635/F
 好题 https://www.luogu.com.cn/problem/P2345 https://www.luogu.com.cn/problem/P5094
 多变量统计 https://codeforces.com/problemset/problem/1194/E
 三元逆序对 https://codeforces.com/problemset/problem/61/E
 整除对统计 https://codeforces.com/problemset/problem/301/D
 区间统计技巧 https://codeforces.com/problemset/problem/369/E
 区间包含计数 https://codeforces.com/problemset/problem/652/D
+建模 https://codeforces.com/problemset/problem/1660/F2
 todo https://codeforces.com/problemset/problem/961/E（不止一种做法）
  https://codeforces.com/gym/101649 I 题
  http://poj.org/problem?id=2155
@@ -106,9 +112,11 @@ func fenwickTree(n int) {
 
 	// 求逆序对的方法之一
 	// 如果 a 范围较大则需要离散化（但这样还不如直接用归并排序）
+	// 归并做法见 misc.go 中的 mergeCount
 	// 扩展 https://codeforces.com/problemset/problem/362/C
 	// 环形最小逆序对 https://www.luogu.com.cn/problem/solution/P2995
 	// 扩展：某些位置上的数待定时的逆序对的期望值 https://codeforces.com/problemset/problem/1096/F
+	// https://codeforces.com/problemset/problem/1585/D
 	cntInversions := func(a []int) int64 {
 		n := len(a)
 		tree := make([]int, n+1)
@@ -142,7 +150,7 @@ func fenwickTree(n int) {
 // 树状数组维护前缀最小值的条件是每次修改只能往小改，那么从后往前做就好了
 // 将询问离线：按照右端点排序（或分组），计算 mex。原理见代码中 query 的注释
 // https://www.luogu.com.cn/problem/P4137
-// LC周赛258D https://leetcode-cn.com/problems/smallest-missing-genetic-value-in-each-subtree/
+// LC2003/周赛258D https://leetcode-cn.com/problems/smallest-missing-genetic-value-in-each-subtree/
 // - 需要将 a 转换成 DFS 序且从 0 开始，同时最终答案需要 +1
 func rangeMex(a []int, qs []struct{ l, r, i int }, min func(int, int) int) []int {
 	const mx int = 1e5 + 2

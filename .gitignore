@@ -13,6 +13,7 @@
 *.out
 
 /.idea
+/vendor
 /[0-9]*
 /todo
 /zdash
@@ -22,5 +23,6 @@
 /zip.go
 /main/main.go
 /main/main_test.go
+/leetcode/main_todo.go
 *.txt
 *.bat

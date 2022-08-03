@@ -12,6 +12,7 @@
 // @match        https://codeforces.com/problemset/problem/*
 // @match        https://codingcompetitions.withgoogle.com/*
 // @match        https://leetcode-cn.com/contest/*
+// @match        https://leetcode.cn/contest/*
 // @match        https://www.acwing.com/problem/content/*
 // ==/UserScript==
 
@@ -38,14 +39,15 @@
     const words = [
         // 描述
         "Initially", "initially", "guaranteed", "No matter", "no matter",
-        "Not ", "not ", "don't", "didn't", "doesn't", "can't", "isn't", "aren't", "No ", " no ", "Non-", "non-", "without", "forbidden", "invalid", "nothing",
+        "Not ", " not ", "don't", "didn't", "doesn't", "can't", "isn't", "aren't", "No ", " no ", "Non-", "non-", "without", "forbidden", "invalid", " nothing",
         "if and only if", "as long as",
         "Each ", " each ", // each 是个挺有趣的词，高亮它能帮助快速定位后面所描述的对象
         "every", " both ", " other ",
         "Also", "also",
         // " all ", "All ",
+        "any number of", "Any number of",
         "equally", "equal", "same", "duplicate", "different", "unique", "distinct", "strictly", "overlapping", "overlap",
-        "Only", "only", "just", "Exactly", "exactly", "always", "indeed",
+        "Only", "only", "just", "Exactly", "exactly", "always", "indeed", "precisely",
         "pairwise", "adjacent", "neighbour", "in a row", "consecutive", "continuous", "contiguous", "one after another", "disjoint", "as possible",
         "more than", "less than",
         "except",
@@ -59,8 +61,8 @@
 
         // 特殊描述
         "substring", "subarray", // "subsequence",
-        "Empty", "empty",
-        "zero", "positive", "negative",
+        "Empty", " empty",
+        "leading zero", "zero", "positive", "negative",
         "decreasing", "descending", "increasing", "ascending", "sorted",
         "permutation",
         "lowercase", "lower case", "uppercase", "upper case",
@@ -70,23 +72,27 @@
         "expected value",
         " circle", " ring",
         "counterclockwise", "counter-clockwise", "clockwise",
-        "origin", "initial",
+        // "origin",
+        "initial",
         "infinite",
+        "leaf",
+        "even integer",
 
         "没有", "不是", "不同", "不会", "互不",
         "相同",
-        "独一无二", "唯一",
+        "独一无二", "唯一", "两个",
         "所有", "每", "任何", "任意", "或", "之一", "反之", "必须", "仅", "其他",
         "最小", "最大", "最少", "最多", "最短", "最长", "最早", "最晚", "最后", "第一", // todo regex 最...
-        "至少", "至多", "恰好",
+        "至少", "至多", "恰好", "刚好",
         "非空", "连续", "子数组", "子区间", "区间", "子序列", "子字符串", "子串",
-        "严格", "递增", "递减", "升序", "降序", "字典序",
+        "严格", /*"递增",*/ "递减", "升序", "降序", "字典序",
         "重复", "重新", "相邻",
         "小写", "大写", "回文",
-        "排列",
+        // "排列",
         "叶子", "叶节点",
         "单向", "双向",
-        "返回", "计算",
+        "本身",
+        // "返回", "计算",
     ];
 
     const tags = ['p', 'li'];
@@ -105,11 +111,13 @@
             }
 
             // 额外高亮
-            const colorGreen = "#ff0000";
-            text = text.highlight("取模", colorGreen).highlight("取余", colorGreen);
+            const colorRed = "#ff0000";
+            text = text.highlight("取模", colorRed).highlight("取余", colorRed).highlight("重复边", colorRed).highlight("重边", colorRed);
 
             text = text.replaceAll("Mr. ", "Mr.")
                 .replaceAll("mr. ", "mr.")
+                .replaceAll("Mrs. ", "Mrs.")
+                .replaceAll("Ms. ", "Ms.")
                 .replaceAll("Dr. ", "Dr.")
                 .replaceAll("i. e. ", "i.e.")
                 .replaceAll("i. e. ", "i.e.") // see https://codeforces.com/contest/1535/problem/A

@@ -18,7 +18,7 @@ https://oeis.org/A036604 Sorting numbers: minimal number of comparisons needed t
 《挑战》3.1 节练习题
 3258 https://www.luogu.com.cn/problem/P2855 二分最小值
 3273 https://www.luogu.com.cn/problem/P2884 二分最大值
-3104 https://codeforces.com/gym/101649 D http://poj.org/problem?id=3104 二分答案，判断条件是 Σmax(0,(ai-t)/k)<=t
+3104 https://codeforces.com/gym/101649 D http://poj.org/problem?id=3104 二分答案，判断条件是 ∑max(0,(ai-t)/k)<=t
 3045 https://www.luogu.com.cn/problem/P1842 贪心，按 s+w 排序
 2976 http://poj.org/problem?id=2976 0-1 分数规划
 3111 https://codeforces.com/gym/101649 K http://poj.org/problem?id=3111 0-1 分数规划
@@ -90,11 +90,42 @@ func sortCollections() {
 	// upperBound-1 为 <=x 的最大值的下标（-1 表示不存在），存在多个最大值时下标取最大的
 
 	// sort.Search 的使用技巧·其一
-	// 由于 sort.Search 需要满足在 x 从小到大时，f(x) 先 false 后 true
-	// 在遇到先 true 后 false 的 f(x) 时
-	// 若目标是找到最大的使 f(x) == true 的 x
-	// 可以考虑二分 !f(x)，则二分结果是最小的使 f(x) == false 的 x，将其 -1 就得到了最大的使 f(x) == true 的 x
-	// 由于要对结果 -1，sort.Search 传入的上界需要 +1（也可以改为在 f 内部对传入的 x++）
+	// sort.Search(n, f) 需要满足当 x 从小到大时，f(x) 先 false 后 true
+	// 若 f(x) 是先 true 后 false，且目标是找到最大的使 f(x) 为 true 的 x
+	// 这种情况可以考虑二分 !f(x)，则二分结果是最小的使 f(x) 为 false 的 x，将其 -1 就得到了最大的使 f(x) 为 true 的 x
+	// 由于要对结果 -1，sort.Search 传入的上界需要 +1
+	// 更加简单的写法是，在 f(x) 内部将 x++，这样就不需要对上界和结果调整 ±1 了
+	//
+	// 下面以二分求 int(sqrt(90)) 为例来说明这一技巧
+	// 这相当于求最大的满足 x*x<=90 的 x
+	// 于是定义 f(x) 返回 x*x<=90，注意这是一个先 true 后 false 的 f(x)
+	// 我们可以改为判断 f(x+1)，即用 f(x+1) 的返回结果代替 f(x) 的返回结果
+	// 同时，将 f(x) 改为先 false 后 true，即返回 x*x>90
+	// 这样二分的结果就恰好停在最大的满足原 f(x) 为 true 的 x 上
+	sort.Search(10, func(x int) bool {
+		x++
+		return x*x > 90
+	})
+
+	// 当然，这种求最大值的二分也可以用下面这种左开右闭的写法（参考 sort.Search 源码）
+	search2 := func(n int, f func(int) bool) int {
+		// Define f(0) == true and f(n+1) == false.
+		// Invariant: f(l) == true, f(r+1) == false.
+		// 这样定义的好处见下面 return 前的注释
+		l, r := 0, n
+		for l < r {
+			mid := int(uint(l+r+1) >> 1) // mid=⌈(l+r)/2⌉，从而保证 mid 落在区间 (l,r] 内
+			// l < mid ≤ r
+			if f(mid) {
+				l = mid // preserves f(l) == true
+			} else {
+				r = mid - 1 // preserves f(r+1) == false
+			}
+		}
+		// l == r, f(r+1) == false, and f(l) (= f(r)) == true  =>  answer is l.
+		return l
+	}
+
 	// 好题 https://atcoder.jp/contests/abc149/tasks/abc149_e
 
 	// sort.Search 的使用技巧·其二
@@ -116,7 +147,7 @@ func sortCollections() {
 
 	searchRange64 := func(l, r int64, f func(int64) bool) int64 {
 		for l < r {
-			m := (l + r) >> 1 // 注意 l+r 是否超 int64，必要时使用 l+(r-l)>>1
+			m := (l + r) >> 1 // l + (r-l)>>1
 			if f(m) {
 				r = m
 			} else {
@@ -160,7 +191,7 @@ func sortCollections() {
 		for i := 0; i < L; i++ {
 			up *= 26
 		}
-		up = (up - 1) / 25 * 26
+		up = (up - 1) / 25 * 26 // 求字符串的个数（等比数列之和 26 + 26*26 + ... + 26^L）
 		kthString := func(k int) []byte {
 			s := []byte{}
 			for k++; k > 0; k /= 26 {
@@ -339,8 +370,7 @@ func sortCollections() {
 	// 这种写法的优点是两次运算可以将枚举范围减半，而三分点的写法两次运算仅去掉了 1/3 的范围（效率比 log(2)/log(1.5) ≈ 1.71）
 	// 但是，如果存在相邻 f 值相同，且只有两个的情况：f(i-1)<f(i)=f(i+1)<f(i+2)，这种写法将会失效，而三分点的写法保证了两个三分点的间隔，可以正常运行
 	ternarySearchInt2 := func(l, r int, f func(x int) int) int {
-		return sort.Search(r-l, func(m int) bool { return f(l+m) < f(l+m+1) }) // < 求最小值   > 求最大值
-		//return sort.Search(r, func(m int) bool { return m >= l && f(m) < f(m+1) })
+		return l + sort.Search(r-l, func(m int) bool { return f(l+m) < f(l+m+1) }) // < 求最小值   > 求最大值
 	}
 
 	// 整数三分·写法三
@@ -357,7 +387,12 @@ func sortCollections() {
 	//       https://codeforces.com/gym/101649 K
 	//       https://www.luogu.com.cn/problem/P1570
 	//       https://loj.ac/p/149
-	// 连续子段的算数平均值 https://codeforces.com/edu/course/2/lesson/6/4/practice/contest/285069/problem/A https://codeforces.com/problemset/problem/1003/C https://www.luogu.com.cn/problem/P1404 https://www.acwing.com/problem/content/104/
+	// 有长度限制的连续子段的（最大/最小）算数平均值
+	//     https://codeforces.com/edu/course/2/lesson/6/4/practice/contest/285069/problem/A
+	//     https://codeforces.com/problemset/problem/1003/C
+	//     https://www.luogu.com.cn/problem/P1404
+	//     https://www.acwing.com/problem/content/104/
+	//     LC644 https://leetcode-cn.com/problems/maximum-average-subarray-ii/
 	//     O(n) 做法见 04 年集训队周源论文《浅谈数形结合思想在信息学竞赛中的应用》（或紫书 p.243 例题 8-9，UVa 1451 https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&category=447&page=show_problem&problem=4197）
 	// 与 0-1 背包结合，即最优比率背包 https://www.luogu.com.cn/problem/P4377 https://ac.nowcoder.com/acm/contest/2271/F
 	// 与生成树结合，即最优比率生成树 https://www.luogu.com.cn/problem/P4951 http://poj.org/problem?id=2728
@@ -493,7 +528,7 @@ func sortCollections() {
 
 	_ = []interface{}{
 		insertionSort,
-		lowerBound, upperBound,
+		lowerBound, upperBound, search2,
 		searchRange, searchRange64,
 		binarySearchS1, binarySearchS2,
 		kthSmallest, kthSmallestRangeSum, kthSubsetSum,

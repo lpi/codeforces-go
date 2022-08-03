@@ -9,8 +9,16 @@ import (
 	"strconv"
 )
 
+// bufio.NewWriter
+// 相比 fmt.Println，每减少 1e5 次 Flush 可以加速约 200ms（Codeforces/AtCoder）
+// 对比：
+// 405ms https://codeforces.com/contest/1603/submission/135520593
+// 187ms https://codeforces.com/contest/1603/submission/134450945
+// NOTE: 调用 Fprintln 打印 int(0)   1e6 次的耗时为 154ms https://codeforces.com/contest/4/submission/142795220
+// NOTE: 调用 Fprintln 打印 int(1e9) 1e6 次的耗时为 312ms https://codeforces.com/contest/4/submission/142795673
+
 // 带有 IO 缓冲区的输入输出，适用于绝大多数题目
-// 相比 fmt.Scan，每读入 1e5 个 int 可以加速约 1300ms（Codeforces/AtCoder）
+// 相比 fmt.Scan，每读入 1e6 个 int 可以加速约 13000ms（Codeforces/AtCoder）
 // 对比：（3e4 个 int）
 // 623ms https://codeforces.com/problemset/submission/981/124239306
 // 233ms https://codeforces.com/problemset/submission/981/124237530
@@ -26,7 +34,7 @@ func bufferIO(_r io.Reader, _w io.Writer) {
 }
 
 // 快读，适用于输入量巨大的题目
-// 相比 fmt.Fscan，每读入 1e6 个 int 可以加速约 400~450ms（Codeforces/AtCoder）
+// 相比上面的 bufferIO，每读入 1e6 个 int 可以加速约 400~450ms（Codeforces/AtCoder）
 func fastIO(_r io.Reader, _w io.Writer) {
 	in := bufio.NewScanner(_r)
 	in.Split(bufio.ScanWords)
@@ -106,6 +114,7 @@ func fastIO(_r io.Reader, _w io.Writer) {
 // fastIO    296 ms
 // fasterIO  202 ms
 // fasterIO  202 ms (use syscall.Read(syscall.Stdin, buf))
+// NOTE: fasterIO 下的纯读入耗时为 61ms https://codeforces.com/contest/1276/submission/142793894
 // 选择 4KB 作为缓存块大小的原因 https://stackoverflow.com/questions/6578394/whats-so-special-about-4kb-for-a-buffer-length
 // NOTE: 如果只有数字的话，只需要判断字符与 '0' 的关系就行了；有小写字母的话，与 'z' 的大小判断可以省去（对运行耗时无影响）
 // NOTE: 额外的好处是，这种避开 Fscan 的写法可以节省一部分内存（1e6 下有 10M 左右）
@@ -177,9 +186,9 @@ func fasterIO(_r io.Reader, _w io.Writer) {
 	// 读一个仅包含小写字母的字符串
 	rs := func() (s []byte) {
 		b := rc()
-		for ; 'a' > b || b > 'z'; b = rc() {
+		for ; 'a' > b || b > 'z'; b = rc() { // 'A' 'Z'
 		}
-		for ; 'a' <= b && b <= 'z'; b = rc() {
+		for ; 'a' <= b && b <= 'z'; b = rc() { // 'A' 'Z'
 			s = append(s, b)
 		}
 		return
@@ -188,7 +197,7 @@ func fasterIO(_r io.Reader, _w io.Writer) {
 	// 读一个长度为 n 的仅包含小写字母的字符串
 	rsn := func(n int) []byte {
 		b := rc()
-		for ; 'a' > b || b > 'z'; b = rc() {
+		for ; 'a' > b || b > 'z'; b = rc() { // 'A' 'Z'
 		}
 		s := make([]byte, 0, n)
 		s = append(s, b)
@@ -201,7 +210,7 @@ func fasterIO(_r io.Reader, _w io.Writer) {
 	// 如果只有/还剩下一个长度未知的字符串（仅包含小写字母）
 	readStringUntilEOF := func() (s []byte) {
 		// 若之前 Read 过……
-		for _i < len(buf) && buf[_i] < 'a' {
+		for _i < len(buf) && buf[_i] < 'a' { // 'A'
 			_i++
 		}
 		s = append(s, buf[_i:]...)
@@ -216,7 +225,7 @@ func fasterIO(_r io.Reader, _w io.Writer) {
 		}
 
 		// 注意末尾有 \r \n 的情况
-		for ; s[len(s)-1] < 'a'; s = s[:len(s)-1] {
+		for ; s[len(s)-1] < 'a'; s = s[:len(s)-1] { // 'A'
 		}
 		return
 	}

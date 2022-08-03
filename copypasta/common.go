@@ -27,6 +27,10 @@ import (
 // 删除一段的最长连续递增 CERC10D https://codeforces.com/gym/101487
 // 统计量是二元组的情形 https://codeforces.com/problemset/problem/301/D
 
+// 双变量+下取整：枚举分母，然后枚举分子的范围，使得在该范围内的分子/分母是一个定值
+// LC1862 https://leetcode.cn/problems/sum-of-floored-pairs/
+// https://codeforces.com/problemset/problem/1706/D2
+
 // 利用前缀和实现巧妙的构造 https://www.luogu.com.cn/blog/duyi/qian-zhui-he
 // 邻项修改->前缀和->单项修改 https://codeforces.com/problemset/problem/1254/B2 https://ac.nowcoder.com/acm/contest/7612/C
 
@@ -41,26 +45,35 @@ import (
 对所有排列考察所有子区间的性质，可以转换成对所有子区间考察所有排列。将子区间内部的排列和区间外部的排列进行区分，内部的性质单独研究，外部的当作 (n-(r-l))! 个排列 https://codeforces.com/problemset/problem/1284/C
 从最大值入手 https://codeforces.com/problemset/problem/1381/B
 等效性 https://leetcode-cn.com/contest/biweekly-contest-8/problems/maximum-number-of-ones/
-逆向思维 https://leetcode-cn.com/contest/biweekly-contest-9/problems/minimum-time-to-build-blocks/
 https://leetcode-cn.com/contest/biweekly-contest-31/problems/minimum-number-of-increments-on-subarrays-to-form-a-target-array/
+*/
+
+/* 逆向思维 / 正难则反：从终点出发 / 小学奥数告诉我们，不可行方案永远比可行方案好求
+https://codeforces.com/problemset/problem/712/C
+https://codeforces.com/problemset/problem/621/C
+https://codeforces.com/problemset/problem/571/A
+https://codeforces.com/problemset/problem/369/E
+https://codeforces.com/problemset/problem/1644/D
+https://codeforces.com/problemset/problem/1638/D
+https://codeforces.com/problemset/problem/1672/D
+逆向思维 https://leetcode-cn.com/contest/biweekly-contest-9/problems/minimum-time-to-build-blocks/
 */
 
 /* 奇偶性
 https://codeforces.com/problemset/problem/763/B
 https://codeforces.com/problemset/problem/1270/E
 https://codeforces.com/problemset/problem/1332/E 配对法：将合法局面与非法局面配对
+LC932/周赛108D https://leetcode.cn/problems/beautiful-array/ 分治
+*/
+
+/* 相邻 传递性
+https://codeforces.com/problemset/problem/1582/E
 */
 
 /* 归纳：solve(n)->solve(n-1) 或者 solve(n-1)->solve(n)
 https://codeforces.com/problemset/problem/1517/C
 https://codeforces.com/problemset/problem/412/D
 https://codeforces.com/problemset/problem/266/C
-*/
-
-/* 正难则反：小学奥数告诉我们，不可行方案永远比可行方案好求
-https://codeforces.com/problemset/problem/621/C
-https://codeforces.com/problemset/problem/571/A
-https://codeforces.com/problemset/problem/369/E
 */
 
 /* 见微知著：考察单个点的规律，从而推出全局规律
@@ -73,6 +86,8 @@ https://leetcode-cn.com/problems/minimum-number-of-operations-to-reinitialize-a-
 //         https://codeforces.com/problemset/problem/1092/D2
 
 // 锻炼分类讨论能力 https://codeforces.com/problemset/problem/356/C
+
+// 「恰好」转换成「至少/至多」https://codeforces.com/problemset/problem/1188/C
 
 /* todo 反悔贪心
 另见 heap.go 中的「反悔堆」
@@ -95,7 +110,7 @@ https://codeforces.com/problemset/problem/707/D
 对于存在海量小对象的情况（如 trie, treap 等），使用 debug.SetGCPercent(-1) 来禁用 GC，能明显减少耗时
 对于可以回收的情况（如 append 在超过 cap 时），使用 debug.SetGCPercent(-1) 虽然会减少些许耗时，但若有大量内存没被回收，会有 MLE 的风险
 其他情况下使用 debug.SetGCPercent(-1) 对耗时和内存使用无明显影响
-对于多组数据的情况，禁用 GC 若 MLE，可在每组数据的开头或末尾调用 debug.FreeOSMemory() 手动 GC
+对于多组数据的情况，若禁用 GC 会 MLE，可在每组数据的开头或末尾调用 runtime.GC() 或 debug.FreeOSMemory() 手动 GC
 参考 https://draveness.me/golang/docs/part3-runtime/ch07-memory/golang-garbage-collector/
     https://zhuanlan.zhihu.com/p/77943973
 对于二维矩阵，以 make([][mx]int, n) 的方式使用，比 make([][]int, n) 嵌套 make([]int, m) 更高效（100MB 以上时可以快 ~150ms）
@@ -103,27 +118,20 @@ https://codeforces.com/problemset/problem/707/D
 对比 https://codeforces.com/problemset/submission/375/118043978
     https://codeforces.com/problemset/submission/375/118044262
 */
-func commonCollection() {
+func _() {
 	const alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	pow10 := func(x int) int64 { return int64(math.Pow10(x)) } // 不需要 round
 
 	// TIPS: dir4[i] 和 dir4[i^1] 互为相反方向
 	type pair struct{ x, y int }
-	dir4 := []pair{{-1, 0}, {1, 0}, {0, -1}, {0, 1}} // 上下左右
-	dir4C := []pair{ // 西东南北
-		'W': {-1, 0},
-		'E': {1, 0},
-		'S': {0, -1},
-		'N': {0, 1},
-	}
-	dir4c := []pair{ // 左右下上
-		'L': {-1, 0},
-		'R': {1, 0},
-		'D': {0, -1},
-		'U': {0, 1},
-	}
+	dir4 := []pair{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}                       // 上下左右
+	dir4g := []pair{'W': {-1, 0}, 'E': {1, 0}, 'S': {0, -1}, 'N': {0, 1}}  // 西东南北（坐标系）
+	dir4g2 := []pair{'W': {0, -1}, 'E': {0, 1}, 'S': {1, 0}, 'N': {-1, 0}} // 西东南北（矩阵）
+	dir4c := []pair{'L': {-1, 0}, 'R': {1, 0}, 'D': {0, -1}, 'U': {0, 1}}  // 左右下上（坐标系）
+	dir4c2 := []pair{'L': {0, -1}, 'R': {0, 1}, 'U': {-1, 0}, 'D': {1, 0}} // 左右下上（矩阵）
 	dir4R := []pair{{1, 1}, {-1, 1}, {-1, -1}, {1, -1}}
-	dir8 := []pair{{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}}
+	dir8 := []pair{{1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}}  // 逆时针（坐标系）
+	dir8m := []pair{{-1, -1}, {-1, 0}, {-1, 1}, {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}} // 顺时针（矩阵）
 	perm3 := [][]int{{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}}
 	perm4 := [][]int{
 		{0, 1, 2, 3}, {0, 1, 3, 2}, {0, 2, 1, 3}, {0, 2, 3, 1}, {0, 3, 1, 2}, {0, 3, 2, 1},
@@ -230,8 +238,35 @@ func commonCollection() {
 		}
 	}
 
+	mergeMap := func(x, y map[int]int) map[int]int {
+		res := make(map[int]int, len(x)+len(y))
+		for v, c := range x {
+			res[v] = c
+		}
+		for v, c := range y {
+			res[v] += c //
+		}
+		return res
+	}
+
+	xorSet := func(x, y map[int]bool) map[int]bool { // xorMap
+		res := make(map[int]bool, len(x)+len(y))
+		for v := range x {
+			res[v] = true
+		}
+		for v := range y {
+			if res[v] {
+				delete(res, v)
+			} else {
+				res[v] = true
+			}
+		}
+		return res
+	}
+
 	// 顺时针旋转矩阵 90°
-	rotate := func(a [][]int) [][]int {
+	// 返回一个拷贝
+	rotateCopy := func(a [][]int) [][]int {
 		n, m := len(a), len(a[0])
 		b := make([][]int, m)
 		for i := range b {
@@ -478,6 +513,7 @@ func commonCollection() {
 
 	// 二维前缀和
 	// 自加写法 https://codeforces.com/contest/835/submission/120031673
+	// https://codeforces.com/contest/1107/problem/D
 	var sum2d [][]int
 	initSum2D := func(a [][]int) {
 		n, m := len(a), len(a[0])
@@ -522,8 +558,8 @@ func commonCollection() {
 		return
 	}
 
-	// 矩阵每条主对角线、反对角线的前缀和
-	// https://leetcode-cn.com/problems/get-biggest-three-rhombus-sums-in-a-grid/
+	// 矩阵斜向前缀和
+	// LC1878/双周赛53C https://leetcode-cn.com/problems/get-biggest-three-rhombus-sums-in-a-grid/
 	diagonalSum := func(a [][]int) {
 		n, m := len(a), len(a[0])
 
@@ -548,7 +584,7 @@ func commonCollection() {
 		_, _ = queryDiagonal, queryAntiDiagonal
 	}
 
-	// 利用每个数产生的贡献计算 Σ|ai-aj|, i!=j
+	// 利用每个数产生的贡献计算 ∑|ai-aj|, i!=j
 	// 相关题目 https://codeforces.com/contest/1311/problem/F
 	contributionSum := func(a []int) (sum int64) {
 		n := len(a)
@@ -560,8 +596,60 @@ func commonCollection() {
 	}
 
 	// 二维差分
-	// todo https://blog.csdn.net/weixin_43914593/article/details/113782108
-	//      https://www.luogu.com.cn/problem/P3397
+	// https://blog.csdn.net/weixin_43914593/article/details/113782108
+	// https://www.luogu.com.cn/problem/P3397
+	// https://leetcode-cn.com/problems/stamping-the-grid/（也可以不用差分）
+	diff2D := func(n, m int) {
+		diff := make([][]int, n+1)
+		for i := range diff {
+			diff[i] = make([]int, m+1)
+		}
+		// 将区域 r1<=r<=r2 && c1<=c<=c2 上的数都加上 x
+		update := func(r1, c1, r2, c2, x int) {
+			r2++
+			c2++
+			diff[r1][c1] += x
+			diff[r1][c2] -= x
+			diff[r2][c1] -= x
+			diff[r2][c2] += x
+		}
+		// 还原二维差分矩阵对应的计数矩阵
+		restore := func() [][]int {
+			ori := make([][]int, n+1)
+			ori[0] = make([]int, m+1)
+			for i, row := range diff[:n] {
+				ori[i+1] = make([]int, m+1)
+				for j, v := range row[:m] {
+					ori[i+1][j+1] = ori[i+1][j] + ori[i][j+1] - ori[i][j] + v
+				}
+			}
+			// 保留 n*m 的计数矩阵
+			ori = ori[1:]
+			for i, row := range ori {
+				ori[i] = row[1:]
+			}
+			return ori
+		}
+		// 直接在 diff 上还原
+		restoreInPlace := func() {
+			for j := 1; j < m; j++ {
+				diff[0][j] += diff[0][j-1]
+			}
+			for i := 1; i < n; i++ {
+				diff[i][0] += diff[i-1][0]
+				for j := 1; j < m; j++ {
+					diff[i][j] += diff[i][j-1] + diff[i-1][j] - diff[i-1][j-1]
+				}
+			}
+			// 保留 n*m 的计数矩阵
+			diff = diff[:n]
+			for i, row := range diff {
+				diff[i] = row[:m]
+			}
+		}
+
+		_, _, _ = update, restore, restoreInPlace
+	}
 
 	reverse := func(a []byte) []byte {
 		n := len(a)
@@ -918,6 +1006,7 @@ func commonCollection() {
 	// TODO 矩形周长 https://www.luogu.com.cn/problem/P1856
 	// 天际线问题 LC218 https://leetcode-cn.com/problems/the-skyline-problem/
 	// TODO 矩形面积并 LC850 https://leetcode-cn.com/problems/rectangle-area-ii/ 《算法与实现》5.4.3
+	//  矩形周长并 http://poj.org/problem?id=1177
 	// 经典题 https://codeforces.com/problemset/problem/1000/C
 	// https://codeforces.com/problemset/problem/1379/D
 	// 转换求解目标 https://codeforces.com/problemset/problem/1285/E
@@ -1081,12 +1170,13 @@ func commonCollection() {
 	}
 
 	_ = []interface{}{
-		pow10, dir4, dir4C, dir4c, dir4R, dir8, perm3, perm4,
+		pow10, dir4, dir4g, dir4g2, dir4c, dir4c2, dir4R, dir8, dir8m, perm3, perm4,
 		min, mins, max, maxs, abs, ceil, bin,
-		ternaryI, ternaryS, zip, zipI, rotate, transpose, minString,
+		ternaryI, ternaryS, zip, zipI, mergeMap, xorSet, rotateCopy, transpose, minString,
 		pow, mul, toAnyBase, digits,
 		subSum, recoverArrayFromSubsetSum, subSumSorted, groupPrefixSum, circularRangeSum, initSum2D, querySum2D, rowColSum, diagonalSum,
 		contributionSum,
+		diff2D,
 		sort3, reverse, reverseInPlace, equal,
 		merge, mergeWithLimit, splitDifferenceAndIntersection, intersection, isSubset, isSubSequence, isDisjoint,
 		unique, uniqueInPlace, discrete, discrete2, discreteMap, indexMap, allSame, complement, quickSelect, contains, containsAll,

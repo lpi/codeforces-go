@@ -2,12 +2,14 @@ package testutil
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func parseRawArray(rawArray string) (splits []string, err error) {
@@ -95,17 +97,17 @@ func parseRawArg(tp reflect.Type, rawData string) (v reflect.Value, err error) {
 		}
 		v = reflect.ValueOf(uint(i))
 	case reflect.Int64:
-		i, er := strconv.Atoi(rawData)
+		i, er := strconv.ParseInt(rawData, 10, 64)
 		if er != nil {
 			return reflect.Value{}, invalidErr
 		}
-		v = reflect.ValueOf(int64(i))
+		v = reflect.ValueOf(i)
 	case reflect.Uint64:
-		i, er := strconv.Atoi(rawData)
+		i, er := strconv.ParseUint(rawData, 10, 64)
 		if er != nil {
 			return reflect.Value{}, invalidErr
 		}
-		v = reflect.ValueOf(uint64(i))
+		v = reflect.ValueOf(i)
 	case reflect.Float64:
 		f, er := strconv.ParseFloat(rawData, 64)
 		if er != nil {
@@ -209,20 +211,22 @@ func toRawString(v reflect.Value) (s string, err error) {
 }
 
 func isTLE(f func()) bool {
-	if DebugTLE == 0 {
+	if DebugTLE == 0 || IsDebugging() {
 		f()
 		return false
 	}
 
 	done := make(chan struct{})
+	timer := time.NewTimer(DebugTLE)
+	defer timer.Stop()
 	go func() {
+		defer close(done)
 		f()
-		done <- struct{}{}
 	}()
 	select {
 	case <-done:
 		return false
-	case <-time.After(DebugTLE):
+	case <-timer.C:
 		return true
 	}
 }
@@ -234,6 +238,9 @@ func RunLeetCodeFuncWithExamples(t *testing.T, f interface{}, rawExamples [][]st
 	if fType.Kind() != reflect.Func {
 		return fmt.Errorf("f must be a function")
 	}
+
+	fNumIn := fType.NumIn()
+	fNumOut := fType.NumOut()
 
 	// 例如，-1 表示最后一个测试用例
 	if targetCaseNum < 0 {
@@ -247,23 +254,23 @@ func RunLeetCodeFuncWithExamples(t *testing.T, f interface{}, rawExamples [][]st
 			continue
 		}
 
-		if len(example) != fType.NumIn()+fType.NumOut() {
-			return fmt.Errorf("len(example) = %d, but we need %d+%d", len(example), fType.NumIn(), fType.NumOut())
+		if len(example) != fNumIn+fNumOut {
+			return fmt.Errorf("len(example) = %d, but we need %d+%d", len(example), fNumIn, fNumOut)
 		}
 
-		rawIn := example[:fType.NumIn()]
+		rawIn := example[:fNumIn]
 		ins := make([]reflect.Value, len(rawIn))
 		for i, rawArg := range rawIn {
-			rawArg = trimSpaceAndNewLine(rawArg)
+			rawArg = trimSpace(rawArg)
 			ins[i], err = parseRawArg(fType.In(i), rawArg)
 			if err != nil {
 				return
 			}
 		}
 		// just check rawExpectedOuts is valid or not
-		rawExpectedOuts := example[fType.NumIn():]
+		rawExpectedOuts := example[fNumIn:]
 		for i := range rawExpectedOuts {
-			rawExpectedOuts[i] = trimSpaceAndNewLine(rawExpectedOuts[i])
+			rawExpectedOuts[i] = trimSpace(rawExpectedOuts[i])
 			if _, err = parseRawArg(fType.Out(i), rawExpectedOuts[i]); err != nil {
 				return
 			}
@@ -285,15 +292,17 @@ func RunLeetCodeFuncWithExamples(t *testing.T, f interface{}, rawExamples [][]st
 			_f()
 		}
 
-		for i, out := range outs {
-			rawActualOut, er := toRawString(out)
-			if er != nil {
-				return er
+		t.Run(fmt.Sprintf("Case %d", curCaseNum+1), func(t *testing.T) {
+			for i, out := range outs {
+				rawActualOut, er := toRawString(out)
+				if er != nil {
+					t.Fatal(er)
+				}
+				if AssertOutput && !assert.Equal(t, rawExpectedOuts[i], rawActualOut, "Wrong Answer %d\nInput:\n%s", curCaseNum+1, inputInfo) {
+					allCasesOk = false
+				}
 			}
-			if AssertOutput && !assert.Equal(t, rawExpectedOuts[i], rawActualOut, "Wrong Answer %d\nInput:\n%s", curCaseNum+1, inputInfo) {
-				allCasesOk = false
-			}
-		}
+		})
 	}
 
 	// 若有测试用例未通过，则前面必然会打印一些信息，这里直接返回
@@ -322,6 +331,40 @@ func RunLeetCodeFuncWithCase(t *testing.T, f interface{}, rawInputs [][]string, 
 func RunLeetCodeFunc(t *testing.T, f interface{}, rawInputs [][]string, rawOutputs [][]string) error {
 	return RunLeetCodeFuncWithCase(t, f, rawInputs, rawOutputs, 0)
 }
+
+func RunLeetCodeFuncWithFile(t *testing.T, f interface{}, filePath string, targetCaseNum int) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	lines := trimSpaceAndEmptyLine(string(data))
+	n := len(lines)
+	if n == 0 {
+		return fmt.Errorf("输入数据为空，请检查文件路径和文件内容是否正确")
+	}
+
+	fType := reflect.TypeOf(f)
+	if fType.Kind() != reflect.Func {
+		return fmt.Errorf("f 必须是函数")
+	}
+
+	// 每 fNumIn+fNumOut 行一组数据
+	fNumIn := fType.NumIn()
+	fNumOut := fType.NumOut()
+	tcSize := fNumIn + fNumOut
+	if n%tcSize != 0 {
+		return fmt.Errorf("有效行数 %d，应该是 %d 的倍数", n, tcSize)
+	}
+
+	examples := make([][]string, 0, n/tcSize)
+	for i := 0; i < n; i += tcSize {
+		examples = append(examples, lines[i:i+tcSize])
+	}
+	return RunLeetCodeFuncWithExamples(t, f, examples, targetCaseNum)
+}
+
+//
 
 // 若反射出来的函数或 rawExamples 数据不合法，则会返回一个非空的 error，否则返回 nil
 func RunLeetCodeClassWithExamples(t *testing.T, constructor interface{}, rawExamples [][3]string, targetCaseNum int) (err error) {
@@ -394,7 +437,8 @@ outer:
 		if DebugCallIndex < 0 {
 			DebugCallIndex += len(rawArgsList)
 		}
-		rawActualOut := "[null"
+		rawActualOut := &strings.Builder{}
+		rawActualOut.WriteString("[null")
 		for callIndex := 1; callIndex < len(rawArgsList); callIndex++ {
 			name := methodNames[callIndex]
 			method := pObj.MethodByName(name)
@@ -418,7 +462,7 @@ outer:
 			}
 
 			if callIndex == DebugCallIndex {
-				print()
+				print() // 在这里打断点
 			}
 
 			// call method
@@ -437,19 +481,23 @@ outer:
 				if er != nil {
 					return er
 				}
-				rawActualOut += "," + s
+				rawActualOut.WriteByte(',')
+				rawActualOut.WriteString(s)
 			} else {
-				rawActualOut += ",null"
+				rawActualOut.WriteString(",null")
 			}
 		}
-		rawActualOut += "]"
+		rawActualOut.WriteByte(']')
 
 		// 比较前，去除 rawExpectedOut 中逗号后的空格
-		// todo: 提示错在哪个 callIndex 上
 		rawExpectedOut = strings.ReplaceAll(rawExpectedOut, ", ", ",")
-		if AssertOutput && !assert.Equal(t, rawExpectedOut, rawActualOut, "Wrong Answer %d", curCaseNum+1) {
-			allCasesOk = false
-		}
+
+		t.Run(fmt.Sprintf("Case %d", curCaseNum+1), func(t *testing.T) {
+			// todo: 提示错在哪个 callIndex 上
+			if AssertOutput && !assert.Equal(t, rawExpectedOut, rawActualOut.String(), "Wrong Answer %d", curCaseNum+1) {
+				allCasesOk = false
+			}
+		})
 	}
 
 	if targetCaseNum > 0 && allCasesOk {
@@ -478,9 +526,31 @@ func RunLeetCodeClass(t *testing.T, constructor interface{}, rawInputs, rawOutpu
 	return RunLeetCodeClassWithCase(t, constructor, rawInputs, rawOutputs, 0)
 }
 
+func RunLeetCodeClassWithFile(t *testing.T, constructor interface{}, filePath string, targetCaseNum int) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return err
+	}
+
+	lines := trimSpaceAndEmptyLine(string(data))
+	n := len(lines)
+	if n == 0 {
+		return fmt.Errorf("输入数据为空，请检查文件路径和文件内容是否正确")
+	}
+
+	// 每三行一组数据
+	if n%3 != 0 {
+		return fmt.Errorf("有效行数 %d，应该是 3 的倍数", n)
+	}
+
+	examples := make([][3]string, 0, n/3)
+	for i := 0; i < n; i += 3 {
+		examples = append(examples, [3]string{lines[i], lines[i+1], lines[i+2]})
+	}
+	return RunLeetCodeClassWithExamples(t, constructor, examples, targetCaseNum)
+}
+
 // 无尽对拍模式
-// todo 构造器+方法的对拍
-//      可以外面套一个函数去分配不同的调用
 func CompareInf(t *testing.T, inputGenerator, runACFunc, runFunc interface{}) {
 	ig := reflect.ValueOf(inputGenerator)
 	if ig.Kind() != reflect.Func {
@@ -494,7 +564,7 @@ func CompareInf(t *testing.T, inputGenerator, runACFunc, runFunc interface{}) {
 		t.Fatal("different input/output")
 	}
 
-	for tc, checkTC := 1, 1; ; tc++ {
+	for tc := 1; ; tc++ {
 		inArgs := ig.Call(nil)
 
 		// 先生成字符串，以免 inArgs 被修改
@@ -522,9 +592,9 @@ func CompareInf(t *testing.T, inputGenerator, runACFunc, runFunc interface{}) {
 			assert.Equal(t, eOut.Interface(), actualOut[i].Interface(), "Wrong Answer %d\nInput:\n%s", tc, inputInfo)
 		}
 
-		if tc == checkTC {
+		// 每到 2 的幂次就打印检测了多少个测试数据
+		if tc&(tc-1) == 0 {
 			t.Logf("%d cases checked.", tc)
-			checkTC <<= 1
 		}
 
 		if Once {

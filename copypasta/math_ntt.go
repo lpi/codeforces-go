@@ -16,6 +16,7 @@ https://oi-wiki.org/math/poly/ntt/
 1004535809 = 479*2^21+1, g = 3, invG = 334845270
  998244353 = 119*2^23+1, g = 3, invG = 332748118
  167772161 =   5*2^25+1, g = 3, invG = 55924054
+P-1 包含大量因子 2，便于分治
 
 模数任意的解决方案 http://blog.miskcoo.com/2015/04/polynomial-multiplication-and-fast-fourier-transform
 任意模数 NTT https://www.luogu.com.cn/problem/P4245
@@ -33,6 +34,7 @@ http://blog.miskcoo.com/2015/05/polynomial-inverse
 http://blog.miskcoo.com/2015/05/polynomial-division
 http://blog.miskcoo.com/2015/05/polynomial-multipoint-eval-and-interpolation
 关于优化形式幂级数计算的 Newton 法的常数 http://negiizhao.blog.uoj.ac/blog/4671
+todo 卡常板子 https://judge.yosupo.jp/submission/65290
 
 从拉插到快速插值求值 https://www.luogu.com.cn/blog/command-block/zong-la-cha-dao-kuai-su-cha-zhi-qiu-zhi
 浅谈多项式复合和拉格朗日反演 https://www.luogu.com.cn/blog/your-alpha1022/qian-tan-duo-xiang-shi-fu-ge-hu-la-ge-lang-ri-fan-yan
@@ -65,8 +67,10 @@ OGF 展开方式 https://oi-wiki.org/math/gen-func/ogf/#_5
 狄利克雷生成函数浅谈 https://www.luogu.com.cn/blog/gxy001/di-li-ke-lei-sheng-cheng-han-shuo-qian-tan
 生成函数在背包问题中的应用 https://zykykyk.github.io/post/%E7%94%9F%E6%88%90%E5%87%BD%E6%95%B0%E5%9C%A8%E8%83%8C%E5%8C%85%E9%97%AE%E9%A2%98%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8/
 生成函数的背包计数问题 https://www.cnblogs.com/ErkkiErkko/p/10838697.html
+OGFs, EGFs, differentiation and Taylor shifts https://codeforces.com/blog/entry/99646
 A problem collection of ODE and differential technique https://codeforces.com/blog/entry/76447
 Optimal Algorithm on Polynomial Composite Set Power Series https://codeforces.com/blog/entry/92183
+On linear recurrences and the math behind them https://codeforces.com/blog/entry/100158
 载谭 Binomial Sum：多项式复合、插值与泰勒展开 https://www.luogu.com.cn/blog/EntropyIncreaser/zai-tan-binomial-sum-duo-xiang-shi-fu-ge-cha-zhi-yu-tai-lei-zhan-kai
 
 炫酷反演魔术 https://www.luogu.com.cn/blog/command-block/xuan-ku-fan-yan-mo-shu
@@ -88,13 +92,6 @@ https://codeforces.com/problemset/problem/958/F3
 todo https://codeforces.com/contest/438/problem/E
 */
 
-type ntt struct {
-	n        int
-	invN     int64
-	omega    []int64
-	omegaInv []int64
-}
-
 const P = 998244353
 
 func _pow(x int64, n int) (res int64) {
@@ -108,18 +105,26 @@ func _pow(x int64, n int) (res int64) {
 	return
 }
 
-func newNTT(n int) *ntt {
+var omega, omegaInv [31]int64 // 多开一点空间
+
+func init() {
 	const g, invG = 3, 332748118
-	omega := make([]int64, n+1)
-	omegaInv := make([]int64, n+1)
-	for i := 1; i <= n; i <<= 1 {
-		omega[i] = _pow(g, (P-1)/i)
-		omegaInv[i] = _pow(invG, (P-1)/i)
+	for i := 1; i < len(omega); i++ {
+		omega[i] = _pow(g, (P-1)/(1<<i))
+		omegaInv[i] = _pow(invG, (P-1)/(1<<i))
 	}
-	return &ntt{n, _pow(int64(n), P-2), omega, omegaInv}
 }
 
-func (t *ntt) transform(a, omega []int64) {
+type ntt struct {
+	n    int
+	invN int64
+}
+
+func newNTT(n int) ntt { return ntt{n, _pow(int64(n), P-2)} }
+
+// 注：下面 swap 的代码，另一种写法是初始化每个 i 对应的 j https://blog.csdn.net/Flag_z/article/details/99163939
+// 由于不是性能瓶颈，实测对性能影响不大
+func (t ntt) transform(a, omega []int64) {
 	for i, j := 0, 0; i < t.n; i++ {
 		if i > j {
 			a[i], a[j] = a[j], a[i]
@@ -131,9 +136,10 @@ func (t *ntt) transform(a, omega []int64) {
 			}
 		}
 	}
-	for l := 2; l <= t.n; l <<= 1 {
+	for l, li := 2, 1; l <= t.n; l <<= 1 {
 		m := l >> 1
-		wn := omega[l]
+		wn := omega[li]
+		li++
 		for st := 0; st < t.n; st += l {
 			b := a[st:]
 			for i, w := 0, int64(1); i < m; i++ {
@@ -146,12 +152,12 @@ func (t *ntt) transform(a, omega []int64) {
 	}
 }
 
-func (t *ntt) dft(a []int64) {
-	t.transform(a, t.omega)
+func (t ntt) dft(a []int64) {
+	t.transform(a, omega[:])
 }
 
-func (t *ntt) idft(a []int64) {
-	t.transform(a, t.omegaInv)
+func (t ntt) idft(a []int64) {
+	t.transform(a, omegaInv[:])
 	for i, v := range a {
 		a[i] = v * t.invN % P
 	}
@@ -166,6 +172,7 @@ func (a poly) resize(n int) poly {
 }
 
 // 计算 A(x) 和 B(x) 的卷积 (convolution)
+// c[i] = ∑a[k]*b[i-k], k=0..i
 // 入参出参都是次项从低到高的系数
 // 模板题 https://www.luogu.com.cn/problem/P3803 https://www.luogu.com.cn/problem/P1919 https://atcoder.jp/contests/practice2/tasks/practice2_f
 func (a poly) conv(b poly) poly {

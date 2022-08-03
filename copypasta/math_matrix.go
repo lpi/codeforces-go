@@ -6,10 +6,15 @@ import (
 	"math"
 )
 
+// 3B1B 线性代数的本质 https://www.bilibili.com/video/BV1ys411472E
+
 /* 矩阵加速
 https://zh.wikipedia.org/wiki/%E6%96%90%E6%B3%A2%E9%82%A3%E5%A5%91%E6%95%B0%E5%88%97#%E7%B7%9A%E6%80%A7%E4%BB%A3%E6%95%B8%E8%A7%A3%E6%B3%95
 https://zhuanlan.zhihu.com/p/56444434
 https://codeforces.com/blog/entry/80195 Matrix Exponentiation video + training contest
+
+三对角矩阵算法（托马斯算法）https://en.wikipedia.org/wiki/Tridiagonal_matrix_algorithm
+https://codeforces.com/contest/24/problem/D
 
 哈密尔顿–凯莱定理 Cayley–Hamilton theorem
 特征多项式是零化多项式
@@ -18,9 +23,13 @@ https://en.wikipedia.org/wiki/Cayley%E2%80%93Hamilton_theorem
 浅谈范德蒙德(Vandermonde)方阵的逆矩阵与拉格朗日(Lagrange)插值的关系以及快速傅里叶变换(FFT)中IDFT的原理 https://www.cnblogs.com/gzy-cjoier/p/9741950.html
 
 模板题 https://www.luogu.com.cn/problem/P1939 https://ac.nowcoder.com/acm/contest/6357/A
+https://codeforces.com/problemset/problem/1182/E
+https://atcoder.jp/contests/abc232/tasks/abc232_e
+有向图中长度为 k 的路径数 https://atcoder.jp/contests/dp/tasks/dp_r
 TR 的数列 https://blog.csdn.net/zyz_bz/article/details/88993616
 挑战 P202 一维方块染色 http://poj.org/problem?id=3734
 3xM 的格子，其中有一些障碍物，求从第二行最左走到第二行最右的方案数，每次可以向右/右上/右下走一步 https://codeforces.com/problemset/problem/954/F
+https://codeforces.com/problemset/problem/166/E
 
 todo poj 2345 3532 3526
 */
@@ -86,7 +95,7 @@ func (a matrix) mul(b matrix) matrix {
 	for i, row := range a {
 		for j := range b[0] {
 			for k, v := range row {
-				c[i][j] = (c[i][j] + v*b[k][j]) % mod
+				c[i][j] = (c[i][j] + v*b[k][j]) % mod // 注：此处不能化简
 			}
 			if c[i][j] < 0 {
 				c[i][j] += mod
@@ -105,6 +114,18 @@ func (a matrix) pow(n int64) matrix {
 		a = a.mul(a)
 	}
 	return res
+}
+
+// 比如 n*n 的国际象棋的马，从 (sx,sy) 走 k 步到 (tx,ty)，需要多少步
+// 这里可以先 O(n^2) 预处理走一步的转移，构建矩阵 a
+// 然后用一个 [1 * (n^2)] 的矩阵初始矩阵乘 a^k
+// 得到一个 [1 * (n^2)] 的结果矩阵 res
+// res[0][tx*n+ty] 就是答案
+func (a matrix) solve(n, sx, sy, tx, ty int, k int64) int64 {
+	b := matrix{make([]int64, n*n)}
+	b[0][sx*n+sy] = 1
+	res := b.mul(a.pow(k))
+	return res[0][tx*n+ty]
 }
 
 // a(n) = p*a(n-1) + q*a(n-2)
@@ -332,12 +353,23 @@ func (a matrix) determinant(mod int64) int64 {
 // todo https://www.cnblogs.com/ywwyww/p/8522541.html
 
 // 线性基（子集异或和问题）
-// https://oi.men.ci/linear-basis-notes/
-// 模板题 https://www.luogu.com.cn/problem/P3812
+// https://oi-wiki.org/math/basis/
+// 线性基学习笔记 https://oi.men.ci/linear-basis-notes/
+// todo XOR basis without linear algebra https://codeforces.com/blog/entry/100066
+// todo https://www.luogu.com.cn/blog/i207M/xian-xing-ji-xue-xi-bi-ji-xie-ti-bao-gao
+// todo 讲解+题单 https://www.cnblogs.com/UntitledCpp/p/13912602.html
+// todo https://www.luogu.com.cn/blog/Troverld/xian-xing-ji-xue-xi-bi-ji
+// https://zhuanlan.zhihu.com/p/139074556
+// todo 讲到了线性基的删除操作 https://blog.csdn.net/a_forever_dream/article/details/83654397
+// todo 线性基求交 https://www.cnblogs.com/BakaCirno/p/11298102.html
+//
+// 模板题 https://loj.ac/p/113 https://www.luogu.com.cn/problem/P3812
 // 构造 https://codeforces.com/problemset/problem/1427/E
 // todo 题单 https://www.luogu.com.cn/training/11251
 // todo https://codeforces.com/problemset/problem/895/C
-//  https://codeforces.com/problemset/problem/845/G
+//  https://codeforces.com/problemset/problem/1101/G
+//  异或最短路/最长路 https://codeforces.com/problemset/problem/845/G https://www.luogu.com.cn/problem/P4151
+//  https://www.luogu.com.cn/problem/P3857
 func xorBasis() {
 	const mx = 62
 	b := [mx + 1]int64{}
@@ -408,3 +440,5 @@ func xorBasis() {
 // todo https://uoj.ac/problem/179
 //  https://codeforces.com/problemset/problem/1430/G https://codeforces.com/blog/entry/83614?#comment-709868
 //  https://codeforces.com/problemset/problem/375/E
+//  NOI08 志愿者招募 https://www.luogu.com.cn/problem/P3980
+//       整数线性规划与全幺模矩阵 https://www.acwing.com/file_system/file/content/whole/index/content/2197334/

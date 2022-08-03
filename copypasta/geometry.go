@@ -396,6 +396,7 @@ func (a lineF) intersection(b lineF) vecF {
 
 // 直线 a b 交点 - 两点式
 // 线段求整数交点 https://codeforces.com/problemset/problem/1036/E
+// https://leetcode-cn.com/problems/intersection-lcci/
 func (a lineF) intersection2(b lineF) vecF {
 	va := a.vec()
 	d1 := va.det(b.p1.sub(a.p1))
@@ -484,11 +485,18 @@ func getCircleCenter(a, b vec, r int64) vecF {
 }
 
 // 直线与圆的交点
+// t1 <= t2
+// 射线的情况见 https://www.acwing.com/problem/content/4502/
 func (o circleF) intersectionLine(l lineF) (ps []vecF, t1, t2 float64) {
 	v := l.vec()
+	// 需要保证 v 不会退化成一个点
+	if v.x == 0 && v.y == 0 {
+		// 根据题意特判
+	}
 	a, b, c, d := v.x, l.p1.x-o.x, v.y, l.p1.y-o.y
 	e, f, g := a*a+c*c, 2*(a*b+c*d), b*b+d*d-o.r*o.r
-	switch delta := f*f - 4*e*g; {
+	delta := f*f - 4*e*g // 注意这会达到值域的 4 次方
+	switch {
 	case delta < -eps: // 相离
 		return
 	case delta < eps: // 相切
@@ -541,6 +549,7 @@ func (o circle) intersectionCircle(b circle) (ps []vecF, normal bool) {
 // 因此，问题变成了求两个圆的交点
 
 // 圆的面积并 - 两圆的特殊情形
+// 两圆面积交 = 面积和 - 面积并
 // todo https://codeforces.com/contest/600/problem/D
 
 // 圆的面积并
@@ -601,7 +610,7 @@ func (o circle) tangents2(b circle) (ls []lineF, hasInf bool) {
 // 详见《计算几何：算法与应用（第 3 版）》第 4.7 节
 // https://en.wikipedia.org/wiki/Smallest-circle_problem
 // https://oi-wiki.org/geometry/random-incremental/
-// 模板题 https://www.luogu.com.cn/problem/P1742 https://www.acwing.com/problem/content/3031/ https://www.luogu.com.cn/problem/P2533
+// 模板题 https://www.luogu.com.cn/problem/P1742 https://www.acwing.com/problem/content/3031/ https://www.luogu.com.cn/problem/P2533 LC1924 https://leetcode-cn.com/problems/erect-the-fence-ii/
 // 椭圆（坐标系旋转缩一下） https://www.luogu.com.cn/problem/P4288 https://www.acwing.com/problem/content/2787/
 func smallestEnclosingDisc(ps []vecF) circleF {
 	rand.Seed(time.Now().UnixNano())
@@ -634,13 +643,7 @@ func smallestEnclosingDisc(ps []vecF) circleF {
 // Angular Sweep 算法 O(n^2logn)
 // https://www.geeksforgeeks.org/angular-sweep-maximum-points-can-enclosed-circle-given-radius/
 // LC1453/周赛189D https://leetcode-cn.com/problems/maximum-number-of-darts-inside-of-a-circular-dartboard/solution/python3-angular-sweepsuan-fa-by-lih/
-func maxCoveredPoints(ps []vec, r int64) int {
-	max := func(a, b int) int {
-		if a > b {
-			return a
-		}
-		return b
-	}
+func maxCoveredPoints(ps []vec, r int64, max func(int, int) int) int {
 	const eps = 1e-8
 	type event struct {
 		angle float64
@@ -703,14 +706,7 @@ func isCircleRectangleOverlap(r, ox, oy, x1, y1, x2, y2 int) bool {
 //  http://poj.org/problem?id=2986
 
 // 多边形相关
-func vec2Collection() {
-	min := func(a, b int64) int64 {
-		if a < b {
-			return a
-		}
-		return b
-	}
-
+func _(min func(int64, int64) int64) {
 	readVec := func(in io.Reader) vec {
 		var x, y int64
 		Fscan(in, &x, &y)
@@ -766,7 +762,7 @@ func vec2Collection() {
 	// 返回最近点对距离的平方
 	// https://algs4.cs.princeton.edu/code/edu/princeton/cs/algs4/ClosestPair.java.html
 	// 模板题 https://www.luogu.com.cn/problem/P1429 https://codeforces.com/problemset/problem/429/D
-	// 有两种类型的点，只需要额外判断类型是否不同即可 https://www.acwing.com/problem/content/121/ http://poj.org/problem?id=3714
+	// bichromatic closest pair 有两种类型的点，只需要额外判断类型是否不同即可 https://www.acwing.com/problem/content/121/ http://poj.org/problem?id=3714
 	var closestPair func([]vec) int64
 	closestPair = func(ps []vec) int64 {
 		// 调用 closestPair 前需保证没有重复的点，并特判 n == 1 的情况
@@ -827,11 +823,13 @@ func vec2Collection() {
 
 	// 求凸包 葛立恒扫描法 Graham's scan
 	// 使用单调栈，保存的向量是有极角序的
-	// 求下凸包：从最左边的点开始遍历，同时用一根绳子逆时针绕圈，理想的顺序是每一步都向左走，如果某个点会导致绳子向右走，那么就需要出栈
-	// 求上凸包就从最右边的点开始
+	// 求下凸包：从最左边的点开始遍历，同时用一根绳子逆时针绕圈，理想的顺序是下一个点的位置在绳子前进方向的左侧，如果某个点会导致绳子向右走，那么就需要出栈
+	// 求上凸包就从倒数第二个点开始继续求
 	// https://algs4.cs.princeton.edu/code/edu/princeton/cs/algs4/GrahamScan.java.html
-	// NOTE: 坐标值范围不超过 M 的凸多边形的顶点数为 O(√M) 个
-	// 模板题 https://www.luogu.com.cn/problem/P2742
+	// NOTE: 坐标值范围不超过 M 的整点凸多边形的顶点数为 O(M^(2/3)) 个
+	// 模板题 https://www.luogu.com.cn/problem/P2742 LC587 https://leetcode-cn.com/problems/erect-the-fence/
+	// 构造 LCP15 https://leetcode-cn.com/problems/you-le-yuan-de-mi-gong/
+	// 转换 https://codeforces.com/problemset/problem/1142/C
 	// 限制区间长度的区间最大均值问题 https://codeforces.com/edu/course/2/lesson/6/4/practice/contest/285069/problem/A
 	// todo poj 2187 1113 1912 3608 2079 3246 3689
 	convexHull := func(ps []vec) (q []vec) {
@@ -843,7 +841,7 @@ func vec2Collection() {
 			q = append(q, p)
 		}
 		sz := len(q)
-		for i := len(ps) - 1; i >= 0; i-- {
+		for i := len(ps) - 2; i >= 0; i-- {
 			p := ps[i]
 			for len(q) > sz && q[len(q)-1].sub(q[len(q)-2]).det(p.sub(q[len(q)-1])) <= 0 {
 				q = q[:len(q)-1]
@@ -974,30 +972,70 @@ func vec2Collection() {
 	}
 
 	// 判断点 p 是否在凸多边形 ps 内部 O(logn)
-	// ps 逆时针顺序
-	// https://www.cnblogs.com/yym2013/p/3673616.html
+	// ps 需为逆时针顺序，ps[n-1] 无需等于 ps[0]
+	// 【推荐】https://www.cnblogs.com/yym2013/p/3673616.html
 	// https://cp-algorithms.com/geometry/point-in-convex-polygon.html
 	// 其他 O(n) 方法 https://blog.csdn.net/WilliamSun0122/article/details/77994526
+	//     判断点是否在所有边的左边（假设 ps 逆时针顺序）
 	// EXTRA: 判断线段是否在凸多边形内：判断两端点是否均在凸多边形内即可
-	inPolygon := func(ps []vec, p vec) bool {
-		n := len(ps)
-		p0 := p.sub(ps[0])
-		// 外：最右射线的右侧或最左射线的左侧
-		if ps[1].sub(ps[0]).det(p0) < 0 || ps[n-1].sub(ps[0]).det(p0) > 0 {
+	inConvexPolygon := func(ps []vec, p vec) bool {
+		o := ps[0]
+		op := p.sub(o)
+		// p 在凸多边形外：o-p 在最右射线 o-ps[1] 的右侧 or 在最左射线 o-ps[n-1] 的左侧
+		// det: 正左负右
+		if ps[1].sub(o).det(op) < 0 || ps[len(ps)-1].sub(o).det(op) > 0 { // 不允许点在边上则加上 =
 			return false
 		}
-		// p0 是否在右侧或重合
-		i := sort.Search(n, func(mid int) bool { return ps[mid].sub(ps[0]).det(p0) <= 0 })
-		// 是否在边左侧或与边重合
-		return ps[i].sub(ps[i-1]).det(p.sub(ps[i-1])) >= 0
+		// 二分找到一个点 ps[i]，使得 o-p 在 o-ps[i] 右侧或重合
+		i := sort.Search(len(ps), func(mid int) bool { return ps[mid].sub(o).det(op) <= 0 })
+		// p 是否在边 ps[i-1]-ps[i] 左侧或与这条边重合
+		return ps[i].sub(ps[i-1]).det(p.sub(ps[i-1])) >= 0 // 不允许点在边上则改为 >
 	}
 
 	// 判断点 p 是否在多边形 ps 内部（不保证凸性）
-	// todo 法一：射线法（光线投射算法 Ray casting algorithm）
-	// 穿过奇数次
+	// https://oi-wiki.org/geometry/2d/#ray-casting-algorithm
+	// https://leetcode.cn/contest/sf-tech/problems/uWWzsv/
 	// http://acm.hdu.edu.cn/showproblem.php?pid=1756
-
-	// todo 法二：转角法
+	// 法一：射线法（光线投射算法 Ray casting algorithm）  奇内偶外
+	// 由于转角法更方便，这里省略射线法的代码
+	// 法二：转角法（绕数法、回转数法）
+	// 【配图】https://blog.csdn.net/Form_/article/details/77855163
+	// 代码参考《训练指南》
+	// 这里统计绕数 Winding Number
+	// 从 p 出发向右作射线，统计多边形穿过这条射线正反多少次
+	// 【输入 ps 不要求是逆时针还是顺时针】
+	inAnyPolygon := func(ps []vec, p vec) int {
+		sign := func(x float64) int {
+			if x < -eps {
+				return -1
+			}
+			if x < eps {
+				return 0
+			}
+			return 1
+		}
+		ps = append(ps, ps[0]) // 额外补一个点，方便枚举所有边
+		wn := 0
+		for i := 1; i < len(ps); i++ {
+			p1, p2 := ps[i-1], ps[i]
+			if p.onSeg(line{p1, p2}) {
+				return -1 // 在边界上
+			}
+			// det: 正左负右
+			k := sign(float64(p2.sub(p1).det(p.sub(p1)))) // 适配 int64 和 float64
+			d1 := sign(float64(p1.y - p.y))
+			d2 := sign(float64(p2.y - p.y))
+			if k > 0 && d1 <= 0 && d2 > 0 { // 逆时针穿过射线（p 需要在 p1-p2 左侧）
+				wn++
+			} else if k < 0 && d2 <= 0 && d1 > 0 { // 顺时针穿过射线（p 需要在 p1-p2 右侧）
+				wn--
+			}
+		}
+		if wn != 0 {
+			return 1 // 在内部
+		}
+		return 0 // 在外部
+	}
 
 	// 判断任意两个多边形是否相离 O(n^2)
 	// 属于不同多边形的任意两边都不相交，且一个多边形上的任意顶点都不被另一个多边形所包含
@@ -1063,7 +1101,7 @@ func vec2Collection() {
 		readVec, leftMostVec, rightMostVec,
 		readPolygon, polygonArea, rotatingCalipers, convexHullPerimeter,
 		halfPlanesIntersection,
-		inTriangle, inPolygon,
+		inTriangle, inConvexPolygon, inAnyPolygon,
 		isRectangleAnyOrder, minAreaRect,
 	}
 }

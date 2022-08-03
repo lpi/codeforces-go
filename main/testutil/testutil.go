@@ -1,6 +1,7 @@
 package testutil
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"
@@ -13,17 +14,17 @@ import (
 type ioFunc func(io.Reader, io.Writer)
 
 func isTLE(f func()) bool {
-	if DebugTLE == 0 {
+	if DebugTLE == 0 || IsDebugging() {
 		f()
 		return false
 	}
 
-	done := make(chan struct{}, 1)
+	done := make(chan struct{})
 	timer := time.NewTimer(DebugTLE)
 	defer timer.Stop()
 	go func() {
+		defer close(done)
 		f()
-		done <- struct{}{}
 	}()
 	select {
 	case <-done:
@@ -69,10 +70,12 @@ func AssertEqualStringCase(t *testing.T, testCases [][2]string, targetCaseNum in
 		}
 		actualOutput := removeExtraSpace(mockWriter.String())
 
-		if !assert.Equal(t, expectedOutput, actualOutput, "Wrong Answer %d\nInput:\n%s", curCaseNum+1, inputInfo) {
-			allPassed = false
-			handleOutput(actualOutput)
-		}
+		t.Run(fmt.Sprintf("Case %d", curCaseNum+1), func(t *testing.T) {
+			if !assert.Equal(t, expectedOutput, actualOutput, "Wrong Answer %d\nInput:\n%s", curCaseNum+1, inputInfo) {
+				allPassed = false
+				handleOutput(actualOutput)
+			}
+		})
 	}
 
 	// 若有测试用例未通过，则前面必然会打印一些信息，这里直接返回
@@ -197,14 +200,16 @@ func AssertEqualRunResults(t *testing.T, inputs []string, targetCaseNum int, run
 		}
 		actualOutput := removeExtraSpace(mockWriter.String())
 
-		assert.Equal(t, expectedOutput, actualOutput, "Wrong Answer %d\nInput:\n%s", curCaseNum+1, inputInfo)
+		t.Run(fmt.Sprintf("Case %d", curCaseNum+1), func(t *testing.T) {
+			assert.Equal(t, expectedOutput, actualOutput, "Wrong Answer %d\nInput:\n%s", curCaseNum+1, inputInfo)
+		})
 	}
 }
 
 // 无尽对拍模式
 // inputGenerator 生成随机测试数据，runFuncAC 为暴力逻辑或已 AC 逻辑，runFunc 为当前测试的逻辑
 func AssertEqualRunResultsInf(t *testing.T, inputGenerator func() string, runFuncAC, runFunc ioFunc) {
-	for tc, checkTC := 1, 1; ; tc++ {
+	for tc := 1; ; tc++ {
 		input := inputGenerator()
 		input = removeExtraSpace(input)
 
@@ -227,9 +232,9 @@ func AssertEqualRunResultsInf(t *testing.T, inputGenerator func() string, runFun
 			assert.Equal(t, expectedOutput, actualOutput, "Wrong Answer %d\nInput:\n%s", tc, input)
 		}
 
-		if tc == checkTC {
+		// 每到 2 的幂次就打印检测了多少个测试数据
+		if tc&(tc-1) == 0 {
 			t.Logf("%d cases checked.", tc)
-			checkTC <<= 1
 		}
 
 		if Once {
@@ -243,7 +248,7 @@ type OutputChecker func(string) bool
 // 无尽验证模式
 // inputGenerator 除了返回随机输入数据外，还需要返回一个闭包，这个闭包接收 runFunc 的输出结果，根据输入数据验证输出结果是否正确
 func CheckRunResultsInfWithTarget(t *testing.T, inputGenerator func() (string, OutputChecker), targetCaseNum int, runFunc ioFunc) {
-	for tc, checkTC := 1, 1; ; tc++ {
+	for tc := 1; ; tc++ {
 		input, checker := inputGenerator()
 		if targetCaseNum > 0 && tc != targetCaseNum {
 			continue
@@ -273,9 +278,9 @@ func CheckRunResultsInfWithTarget(t *testing.T, inputGenerator func() (string, O
 			return
 		}
 
-		if tc == checkTC {
+		// 每到 2 的幂次就打印检测了多少个测试数据
+		if tc&(tc-1) == 0 {
 			t.Logf("%d cases checked.", tc)
-			checkTC <<= 1
 		}
 
 		if Once {

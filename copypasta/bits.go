@@ -20,11 +20,16 @@ a+b = (a|b) + (a&b)
     = (a&b)*2 + (a^b)
     = (a|b)*2 - (a^b)
 相关题目
+https://codeforces.com/problemset/problem/76/D
 https://codeforces.com/problemset/problem/1325/D
 https://atcoder.jp/contests/abc050/tasks/arc066_b
 
 结合律：(a&b)^(a&c) = a&(b^c)    其他符号类似
 相关题目 https://leetcode-cn.com/contest/weekly-contest-237/problems/find-xor-sum-of-all-pairs-bitwise-and/
+
+集合论公式的二进制等价形式：
+popcount(a&b) + popcount(a|b) = popcount(a) + popcount(b)
+相关题目 https://leetcode.cn/problems/number-of-excellent-pairs/
 
 运算符优先级 https://golang.org/ref/spec#Operators
 Precedence    Operator
@@ -36,7 +41,7 @@ Precedence    Operator
 
 一些子集的枚举算法见 search.go
 S∪{i}: S|1<<i
-S\{i}:  S&^(1<<i)
+S\{i}: S&^(1<<i)
 构造 2^n-1，即 n 个 1 的另一种方法: ^(-1<<n)
 检测是否只有一个 1：x&(x-1) == 0
 
@@ -52,6 +57,11 @@ https://oeis.org/A048004 最长连续 1 为 k 的长为 n 的二进制串的个�
 https://oeis.org/A047778 Concatenation of first n numbers in binary, converted to base 10
 相关题目：https://leetcode-cn.com/contest/weekly-contest-218/problems/concatenation-of-consecutive-binary-numbers/
 钱珀瑙恩数 Champernowne constant https://en.wikipedia.org/wiki/Champernowne_constant
+
+https://oeis.org/A072339
+Any number n can be written (in two ways, one with m even and one with m odd) in the form n = 2^k_1 - 2^k_2 + 2^k_3 - ... + 2^k_m
+where the signs alternate and k_1 > k_2 > k_3 > ... >k_m >= 0; sequence gives minimal value of m
+https://codeforces.com/problemset/problem/1617/E
 
 异或和相关
 https://oeis.org/A003987 异或矩阵
@@ -133,6 +143,9 @@ https://oeis.org/A055015 Sum of 6th powers of digits of n
 https://oeis.org/A031286 Additive persistence: number of summations of digits needed to obtain a single digit (the additive digital root)
 https://oeis.org/A031346 Multiplicative persistence: number of iterations of "multiply digits" needed to reach a number < 10
 
+https://oeis.org/A014837 Sum of all the digits of n in every base from 2 to n-1
+https://oeis.org/A043306 Sum of all the digits of n in every base from 2 to n
+
 回文数
 https://oeis.org/A002113 十进制回文数
 	https://oeis.org/A043269 digsum(A002113(n))
@@ -149,6 +162,7 @@ https://oeis.org/A003459 绝对素数/可交换素数 Absolute primes (or permut
 	https://en.wikipedia.org/wiki/Permutable_prime
 https://oeis.org/A007500 Primes whose reversal in base 10 is also prime
 https://oeis.org/A006995 二进制回文数
+https://oeis.org/A007632 既是二进制回文数又是十进制回文数
 
 https://oeis.org/A090994 Number of meaningful differential operations of the n-th order on the space R^9
 a(k+5) = a(k+4) + 4*a(k+3) - 3*a(k+2) - 3*a(k+1) + a(k)
@@ -159,8 +173,11 @@ a(k+5) = a(k+4) + 4*a(k+3) - 3*a(k+2) - 3*a(k+1) + a(k)
 */
 
 // Bitset
-// 参考 C++ 的标准库源码 https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-html-USERS-3.4/bitset-source.html
+// 部分参考 C++ 的标准库源码 https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-html-USERS-3.4/bitset-source.html
 // 若要求方法内不修改 b 而是返回一个修改后的拷贝，可以在方法开头加上 b = append(Bitset(nil), b...) 并返回 b
+// 应用：https://codeforces.com/problemset/problem/33/D（也可以用 LCA）
+// uint32 is faster than uint64 on Codeforces
+// 如果效率不够高，可以试试 0-1 线段树，见 segment_tree01.go
 const _w = bits.UintSize
 
 func NewBitset(n int) Bitset { return make(Bitset, n/_w+1) } // (n+_w-1)/_w
@@ -172,8 +189,178 @@ func (b Bitset) Flip(p int)     { b[p/_w] ^= 1 << (p % _w) }
 func (b Bitset) Set(p int)      { b[p/_w] |= 1 << (p % _w) }  // 置 1
 func (b Bitset) Reset(p int)    { b[p/_w] &^= 1 << (p % _w) } // 置 0
 
+// 遍历所有 1 的位置
+// 如果对范围有要求，可在 f 中 return p < n
+func (b Bitset) Foreach(f func(p int) (Break bool)) {
+	for i, v := range b {
+		for ; v > 0; v &= v - 1 {
+			j := i*_w | bits.TrailingZeros(v)
+			if f(j) {
+				return
+			}
+		}
+	}
+}
+
+// 返回第一个 0 的下标，若不存在则返回一个不小于 n 的位置
+func (b Bitset) Index0() int {
+	for i, v := range b {
+		if ^v != 0 {
+			return i*_w | bits.TrailingZeros(^v)
+		}
+	}
+	return len(b) * _w
+}
+
+// 返回第一个 1 的下标，若不存在则返回一个不小于 n 的位置（同 C++ 中的 _Find_first）
+func (b Bitset) Index1() int {
+	for i, v := range b {
+		if v != 0 {
+			return i*_w | bits.TrailingZeros(v)
+		}
+	}
+	return len(b) * _w
+}
+
+// 返回下标 >= p 的第一个 1 的下标，若不存在则返回一个不小于 n 的位置（类似 C++ 中的 _Find_next，这里是 >=）
+func (b Bitset) Next1(p int) int {
+	if i := p / _w; i < len(b) {
+		v := b[i] & (^uint(0) << (p % _w)) // mask off bits below bound
+		if v != 0 {
+			return i*_w | bits.TrailingZeros(v)
+		}
+		for i++; i < len(b); i++ {
+			if b[i] != 0 {
+				return i*_w | bits.TrailingZeros(b[i])
+			}
+		}
+	}
+	return len(b) * _w
+}
+
+// 返回下标 >= p 的第一个 0 的下标，若不存在则返回一个不小于 n 的位置
+func (b Bitset) Next0(p int) int {
+	if i := p / _w; i < len(b) {
+		v := b[i]
+		if p%_w > 0 {
+			v |= ^(^uint(0) << (p % _w))
+		}
+		if ^v != 0 {
+			return i*_w | bits.TrailingZeros(^v)
+		}
+		for i++; i < len(b); i++ {
+			if ^b[i] != 0 {
+				return i*_w | bits.TrailingZeros(^b[i])
+			}
+		}
+	}
+	return len(b) * _w
+}
+
+// 返回最后第一个 1 的下标，若不存在则返回 -1
+func (b Bitset) LastIndex1() int {
+	for i := len(b) - 1; i >= 0; i-- {
+		if b[i] != 0 {
+			return i*_w | (bits.Len(b[i]) - 1) // 如果再 +1，需要改成 i*_w + bits.Len(b[i])
+		}
+	}
+	return -1
+}
+
+// += 1 << i，模拟进位
+func (b Bitset) Add(i int) { b.FlipRange(i, b.Next0(i)) }
+
+// -= 1 << i，模拟借位
+func (b Bitset) Sub(i int) { b.FlipRange(i, b.Next1(i)) }
+
+// 判断 [l,r] 范围内的数是否全为 0
+// https://codeforces.com/contest/1107/problem/D（标准做法是二维前缀和）
+func (b Bitset) All0(l, r int) bool {
+	i := l / _w
+	if i == r/_w {
+		mask := ^uint(0)<<(l%_w) ^ ^uint(0)<<(r%_w)
+		return b[i]&mask == 0
+	}
+	if b[i]>>(l%_w) != 0 {
+		return false
+	}
+	for i++; i < r/_w; i++ {
+		if b[i] != 0 {
+			return false
+		}
+	}
+	mask := ^uint(0) << (r % _w)
+	return b[r/_w]&^mask == 0
+}
+
+// 判断 [l,r] 范围内的数是否全为 1
+func (b Bitset) All1(l, r int) bool {
+	i := l / _w
+	if i == r/_w {
+		mask := ^uint(0)<<(l%_w) ^ ^uint(0)<<(r%_w)
+		return b[i]&mask == mask
+	}
+	mask := ^uint(0) << (l % _w)
+	if b[i]&mask != mask {
+		return false
+	}
+	for i++; i < r/_w; i++ {
+		if ^b[i] != 0 {
+			return false
+		}
+	}
+	mask = ^uint(0) << (r % _w)
+	return ^(b[r/_w] | mask) == 0
+}
+
+// 反转 [l,r) 范围内的比特
+// https://codeforces.com/contest/1705/problem/E
+func (b Bitset) FlipRange(l, r int) {
+	maskL, maskR := ^uint(0)<<(l%_w), ^uint(0)<<(r%_w)
+	i := l / _w
+	if i == r/_w {
+		b[i] ^= maskL ^ maskR
+		return
+	}
+	b[i] ^= maskL
+	for i++; i < r/_w; i++ {
+		b[i] = ^b[i]
+	}
+	b[i] ^= ^maskR
+}
+
+// 将 [l,r) 范围内的比特全部置 1
+func (b Bitset) SetRange(l, r int) {
+	maskL, maskR := ^uint(0)<<(l%_w), ^uint(0)<<(r%_w)
+	i := l / _w
+	if i == r/_w {
+		b[i] |= maskL ^ maskR
+		return
+	}
+	b[i] |= maskL
+	for i++; i < r/_w; i++ {
+		b[i] = ^uint(0)
+	}
+	b[i] |= ^maskR
+}
+
+// 将 [l,r) 范围内的比特全部置 0
+func (b Bitset) ResetRange(l, r int) {
+	maskL, maskR := ^uint(0)<<(l%_w), ^uint(0)<<(r%_w)
+	i := l / _w
+	if i == r/_w {
+		b[i] &= ^maskL | maskR
+		return
+	}
+	b[i] &= ^maskL
+	for i++; i < r/_w; i++ {
+		b[i] = 0
+	}
+	b[i] &= maskR
+}
+
 // 左移 k 位
-// 应用 https://leetcode-cn.com/problems/minimize-the-difference-between-target-and-chosen-elements/submissions/
+// LC1981/周赛255C https://leetcode-cn.com/problems/minimize-the-difference-between-target-and-chosen-elements/
 func (b Bitset) Lsh(k int) {
 	if k == 0 {
 		return
@@ -219,7 +406,7 @@ func (b Bitset) Rsh(k int) {
 		for i := 0; i < lim; i++ {
 			b[i] = b[i+shift]>>offset | b[i+shift+1]<<(_w-offset)
 		}
-		// 注意：若前后调用 lsh 和 rsh，需要注意超出 n 的范围的 1 对结果的影响
+		// 注意：若前后调用 lsh 和 rsh，需要注意超出 n 的范围的 1 对结果的影响（如果需要，可以把范围开大点）
 		b[lim] = b[len(b)-1] >> offset
 	}
 	for i := lim + 1; i < len(b); i++ {
@@ -227,63 +414,15 @@ func (b Bitset) Rsh(k int) {
 	}
 }
 
-// 返回 1 的个数
+// 借用 bits 库中的一些方法的名字
 func (b Bitset) OnesCount() (c int) {
 	for _, v := range b {
 		c += bits.OnesCount(v)
 	}
 	return
 }
-
-// 遍历所有 1 的位置
-// 如果对范围有要求，可在 f 中 return p < n
-func (b Bitset) Foreach(f func(p int) (Break bool)) {
-	for i, v := range b {
-		for ; v > 0; v &= v - 1 {
-			j := i*_w | bits.TrailingZeros(v)
-			if f(j) {
-				return
-			}
-		}
-	}
-}
-
-// 返回第一个 0 的下标，不存在时会返回一个不小于 n 的位置
-func (b Bitset) Index0() int {
-	for i, v := range b {
-		if ^v != 0 {
-			return i*_w | bits.TrailingZeros(^v)
-		}
-	}
-	return len(b) * _w
-}
-
-// 返回第一个 1 的下标，不存在时会返回一个不小于 n 的位置（同 C++ 中的 _Find_first）
-func (b Bitset) Index1() int {
-	for i, v := range b {
-		if v != 0 {
-			return i*_w | bits.TrailingZeros(v)
-		}
-	}
-	return len(b) * _w
-}
-
-// 返回下标严格大于 p 的第一个 1 的下标，不存在时会返回一个不小于 n 的位置（同 C++ 中的 _Find_next）
-func (b Bitset) Next1(p int) int {
-	p++ // make bound inclusive
-	if i := p / _w; i < len(b) {
-		v := b[i] & (^uint(0) << (p % _w)) // mask off bits below bound
-		if v != 0 {
-			return i*_w | bits.TrailingZeros(v)
-		}
-		for i++; i < len(b); i++ {
-			if b[i] != 0 {
-				return i*_w | bits.TrailingZeros(b[i])
-			}
-		}
-	}
-	return len(b) * _w
-}
+func (b Bitset) TrailingZeros() int { return b.Index1() }
+func (b Bitset) Len() int           { return b.LastIndex1() + 1 }
 
 // 下面几个方法均需保证长度相同
 func (b Bitset) Equals(c Bitset) bool {
@@ -305,14 +444,14 @@ func (b Bitset) HasSubset(c Bitset) bool {
 }
 
 // 将 c 的元素合并进 b
-func (b Bitset) Merge(c Bitset) {
+func (b Bitset) MergeFrom(c Bitset) {
 	for i, v := range c {
 		b[i] |= v
 	}
 }
 
 // 注：有关子集枚举的位运算技巧，见 search.go
-func bitsCollection() {
+func _() {
 	// 利用 -v = ^v+1
 	lowbit := func(v int64) int64 { return v & -v }
 
@@ -361,6 +500,7 @@ func bitsCollection() {
 	// &: LC1521/周赛198D https://leetcode-cn.com/contest/weekly-contest-198/problems/find-a-value-of-a-mysterious-function-closest-to-target/
 	// GCD: https://codeforces.com/edu/course/2/lesson/9/2/practice/contest/307093/problem/G
 	//      https://codeforces.com/problemset/problem/475/D (见下面的 bitOpTrickCnt)
+	//      https://codeforces.com/problemset/problem/1632/D (见下面的 bitOpTrickCnt)
 	bitOpTrick := func(a []int, op func(x, y int) int) map[int]bool {
 		ans := map[int]bool{} // 统计 op(一段区间) 的不同结果
 		set := []int{}
@@ -388,6 +528,7 @@ func bitsCollection() {
 
 	// 进阶：对于数组 a 的所有区间，返回 op(区间元素) 的全部运算结果及其出现次数
 	// https://codeforces.com/problemset/problem/475/D
+	// https://codeforces.com/problemset/problem/1632/D
 	// 与单调栈结合 https://codeforces.com/problemset/problem/875/D
 	// CERC13，紫书例题 10-29，UVa 1642 https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&category=825&page=show_problem&problem=4517
 	bitOpTrickCnt := func(a []int, op func(x, y int) int) map[int]int64 {
@@ -410,7 +551,8 @@ func bitsCollection() {
 				}
 			}
 			set = set[:k+1]
-			// 此时我们将区间 [0,i] 划分成了 len(set) 个（左闭右开）区间，对 ∀j∈[set[k].l,set[k].r)，op(区间[j,i]) 的计算结果均为 set[k].v
+			// 此时我们将区间 [0,i] 划分成了 len(set) 个左闭右开区间
+			// 对 ∀p∈set，∀j∈[p.l,p.r)，op(区间[j,i]) 的计算结果均为 p.v
 			for _, p := range set {
 				// do p...     [l,r)
 				cnt[p.v] += int64(p.r - p.l)
@@ -420,10 +562,14 @@ func bitsCollection() {
 	}
 
 	//（接上）考虑乘法
-	// 给一数组 a，元素均为正整数，求区间和等于区间积的区间个数
-	// 核心思路是对于每个区间右端点，其对应的区间积不会超过 sum(a)，且由于乘积至少要乘 2 才会变化，所以区间右端点对应的区间积至多有 O(log(sum(a))) 个不同的值
-	// 而每个前缀和都是不同的，所以区间右端点对应的答案个数也至多有 O(log(sum(a))) 个
-	// 因此总的答案个数至多为 O(nlog(sum(a)))
+	// 问题：给一数组 a，元素均为正整数，求区间和等于区间积的区间个数
+	// 我们来考虑对每个区间右端点，有多少个合法的区间左端点
+	// 核心思路是，对于每个满足题目要求的区间，其区间积不会超过 sum(a)
+	// 由于乘积至少要乘 2 才会变化，所以对于一个固定的区间右端点，不同的区间积至多有 O(log(sum(a))) 个
+	// 同时由于元素均为正数，所以对一个固定的区间右端点，区间左端点也至多有 O(log(sum(a))) 个
+	// 据此我们只需要在加入一个新的数后，去重并去掉区间积超过 sum(a) 的区间，就可以暴力做出此题
+	// 注：根据以上推导过程，我们还可以得出总的答案个数至多为 O(nlog(sum(a)))
+	// https://www.dotcpp.com/oj/problem2622.html
 	countSumEqMul := func(a []int) (ans int) {
 		tot := 0
 		for _, v := range a {
@@ -479,17 +625,10 @@ func bitsCollection() {
 		return nil
 	}
 
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
-
 	// 在 [low,high] 区间内找两个数字 A B，使其异或值最大且不超过 limit
 	// 返回值保证 A <= B
 	// 复杂度 O(log(high))
-	maxXorWithLimit := func(low, high, limit int) (int, int) {
+	maxXorWithLimit := func(low, high, limit int, min func(int, int) int) (int, int) {
 		n := bits.Len(uint(high ^ low))
 		maxXor := 1<<n - 1
 		mid := high&^maxXor | 1<<(n-1)

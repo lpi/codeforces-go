@@ -268,11 +268,11 @@ func miscCollection() {
 		for i := 0; i < n*m; i++ { // 从 0 到 n*m-1
 			mat[x][y] = i
 			//pos[i] = pair{x, y}
-			d := dir4[di&3]
+			d := dir4[di]
 			if xx, yy := x+d.x, y+d.y; xx < 0 || xx >= n || yy < 0 || yy >= m || mat[xx][yy] != -1 {
-				di++
+				di = (di + 1) & 3
+				d = dir4[di]
 			}
-			d = dir4[di&3]
 			x += d.x
 			y += d.y
 		}
@@ -402,7 +402,7 @@ func miscCollection() {
 // b 是 a 的一个排列（允许有重复元素）
 // 返回 b 中各个元素在 a 中的下标（重复的元素顺序保持一致）
 // 可用于求从 a 变到 b 需要的相邻位元素交换的最小次数，即返回结果的逆序对个数
-// LC周赛239C https://leetcode-cn.com/problems/minimum-adjacent-swaps-to-reach-the-kth-smallest-number/
+// LC1850/周赛239C https://leetcode-cn.com/problems/minimum-adjacent-swaps-to-reach-the-kth-smallest-number/
 func mapPos(a, b []int) []int {
 	pos := map[int][]int{}
 	for i, v := range a {
@@ -416,10 +416,11 @@ func mapPos(a, b []int) []int {
 	return ids
 }
 
-// 逆序对
+// 归并排序与逆序对
 // LC 面试题 51 https://leetcode-cn.com/problems/shu-zu-zhong-de-ni-xu-dui-lcof/
-// EXTRA: LC 327 https://leetcode-cn.com/problems/count-of-range-sum/
-//        LC 493 https://leetcode-cn.com/problems/reverse-pairs/
+// EXTRA: LC315 https://leetcode-cn.com/problems/count-of-smaller-numbers-after-self/
+//        LC327 https://leetcode-cn.com/problems/count-of-range-sum/
+//        LC493 https://leetcode-cn.com/problems/reverse-pairs/
 // 一张关于归并排序的好图 https://www.cnblogs.com/chengxiao/p/6194356.html
 func mergeCount(a []int) int64 {
 	n := len(a)
@@ -672,13 +673,7 @@ func calculate(s string) (ans int) {
 // 对于一个填满的网格图，每个士兵到边缘的最短路径就是离他最近的边缘的距离
 // 当一个士兵退出网格后，BFS 地更新他周围的士兵到边缘的最短路径（空格点为 0，有人的格点为 1）
 // 复杂度 O((n+m)*min(n,m)^2)
-func minMustPassSum(n, m int, targetCells [][2]int) int {
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
+func minMustPassSum(n, m int, targetCells [][2]int, min func(int, int) int) int {
 	dis := make([][]int, n)
 	filled := make([][]int, n) // 格子是否有人
 	inQ := make([][]bool, n)
@@ -725,19 +720,7 @@ func minMustPassSum(n, m int, targetCells [][2]int) int {
 // 马走日从 (0,0) 到 (x,y) 所需最小步数
 // 无边界 LC1197/双周赛9B https://leetcode-cn.com/contest/biweekly-contest-9/problems/minimum-knight-moves/
 // 有边界+打印方案 https://www.acwing.com/problem/content/3527/
-func minKnightMoves(x, y int) int {
-	abs := func(x int) int {
-		if x < 0 {
-			return -x
-		}
-		return x
-	}
-	max := func(a, b int) int {
-		if a > b {
-			return a
-		}
-		return b
-	}
+func minKnightMoves(x, y int, abs func(int) int, max func(int, int) int) int {
 	x, y = abs(x), abs(y)
 	if x+y == 1 {
 		return 3
@@ -769,6 +752,8 @@ func isCuboid(rect [][2]int) bool {
 // 思路：用递推公式，自底向上计算
 // https://zh.wikipedia.org/wiki/%E7%BA%A6%E7%91%9F%E5%A4%AB%E6%96%AF%E9%97%AE%E9%A2%98
 // https://oi-wiki.org/misc/josephus/ 注意当 k 较小时，存在 O(klogn) 的做法
+// https://www.scirp.org/pdf/OJDM_2019101516120841.pdf Generalizations of the Feline and Texas Chainsaw Josephus Problems
+//
 // 相关题目 https://leetcode-cn.com/problems/find-the-winner-of-the-circular-game/
 // https://codeforces.com/gym/101955/problem/K
 func josephusProblem(n, k int) int {
@@ -783,14 +768,7 @@ func josephusProblem(n, k int) int {
 // 环形 https://www.luogu.com.cn/problem/P2512 https://www.luogu.com.cn/problem/P3051 https://www.luogu.com.cn/problem/P4016 UVa11300 https://onlinejudge.org/index.php?option=com_onlinejudge&Itemid=8&category=25&page=show_problem&problem=2275
 // 环形+打印方案 https://www.luogu.com.cn/problem/P2125
 // 二维环形 https://www.acwing.com/problem/content/107/
-func minMoveToAllSameInCircle(a []int) (ans int) { // int64
-	abs := func(x int) int {
-		if x < 0 {
-			return -x
-		}
-		return x
-	}
-
+func minMoveToAllSameInCircle(a []int, abs func(int) int) (ans int) { // int64
 	n := len(a)
 	avg := 0
 	for _, v := range a {

@@ -14,9 +14,12 @@
 
 ## 算法目录
 
+[不了解 Go？快速入门教程](https://gobyexample-cn.github.io/)
+
 - 数据结构
   - [单调栈 monotone_stack.go](/copypasta/monotone_stack.go)
   - [单调队列 monotone_queue.go](/copypasta/monotone_queue.go)
+    - 二维单调队列
   - [双端队列 deque.go](/copypasta/deque.go)
   - [堆（优先队列）heap.go](/copypasta/heap.go)
     - 支持修改、删除指定元素
@@ -33,6 +36,7 @@
     - 线段树合并
     - 线段树分裂
     - 持久化（主席树）
+  - [0-1 线段树 segment_tree01.go](/copypasta/segment_tree01.go)
   - [左偏树（可并堆）leftist_tree.go](/copypasta/leftist_tree.go)
   - [笛卡尔树 cartesian_tree.go](/copypasta/cartesian_tree.go)
   - [二叉搜索树公共方法 bst.go](/copypasta/bst.go)
@@ -60,6 +64,7 @@
   - 最长回文子串 
     - Manacher 算法
   - 后缀数组（SA）
+  - [后缀自动机（SAM）sam.go](/copypasta/sam.go)
   - [字典树 trie.go](/copypasta/trie.go)
     - 持久化
     - AC 自动机
@@ -68,11 +73,11 @@
     - Hack：构造一组数据，最大化树上的节点数
 - 数学
   - [数论 math.go](/copypasta/math.go)
-    - 最大公因数（GCD）
+    - 辗转相除法（最大公因数 GCD）
     - 类欧几里得算法 ∑⌊(ai+b)/m⌋
     - Pollard-Rho 质因数分解算法
-    - 埃氏筛
-    - 线性筛
+    - 埃氏筛（埃拉托斯特尼筛法）
+    - 欧拉筛（线性筛）
     - 欧拉函数
     - 原根
     - 扩展 GCD
@@ -124,6 +129,9 @@
     - 圆与矩形
     - 最近点对
     - 多边形与点
+      - 判断点在凸多边形内 O(log n)
+      - 判断点在任意多边形内
+        - 转角法（统计绕数）
     - 凸包
     - 最远点对
       - 旋转卡壳
@@ -166,7 +174,9 @@
     - 换根 DP（二次扫描法）
 - [图论 graph.go](/copypasta/graph.go)
   - 链式前向星
-  - 欧拉回路
+  - 欧拉回路和欧拉路径
+    - 无向图
+    - 有向图
   - 割点
   - 割边（桥）
   - 双连通分量（BCC）
@@ -184,6 +194,9 @@
   - 最小生成树（MST）
     - Kruskal
     - Prim
+  - 单度限制最小生成树
+  - 次小生成树
+  - 曼哈顿距离最小生成树
   - 最小差值生成树
   - 最小树形图
     - 朱刘算法
@@ -218,7 +231,7 @@
       - ST 表
       - Tarjan
       - 树上差分
-    - 树链剖分（重链剖分，HLD）
+    - 重链剖分（HLD）
     - 长链剖分
     - 树上启发式合并（DSU）
     - 树分块
@@ -236,15 +249,17 @@
     - 生成下一个排列
     - 康托展开
     - 逆康托展开
-    - 折半枚举
-      - 超大背包问题
     - 枚举子集
-      - Gosper’s Hack
+      - Gosper's Hack
+    - 折半枚举（Meet in the middle）
+      - 超大背包问题
   - [随机算法 rand.go](/copypasta/rand.go)
     - 模拟退火
   - [杂项A common.go](/copypasta/common.go)
     - 算法思路整理
     - 前缀和
+    - 二维前缀和
+    - 二维差分
     - 离散化
   - [杂项B misc.go](/copypasta/misc.go)
 - [快读模板 io.go](/copypasta/io.go)
@@ -260,7 +275,7 @@
 
 [https://codeforces.com/problemset?order=BY_SOLVED_DESC&tags=constructive+algorithms%2C1700-1900](https://codeforces.com/problemset?order=BY_SOLVED_DESC&tags=constructive+algorithms%2C1700-1900)
 
-通过大量的构造题训练，提高观察能力，快速找到切题入口。
+通过大量的构造题训练，提高观察能力，快速找到切题入口。具体见我在知乎上的这篇 [回答](https://www.zhihu.com/question/353734418/answer/2353160035)。
 
 ### Rating >= 2100
 
@@ -268,7 +283,7 @@
 
 我的 Codeforces 账号：
 
-[![0x3F](https://img.shields.io/badge/0x3F-MASTER%202107-orange?style=for-the-badge)](https://codeforces.com/profile/0x3F)
+[![0x3F](https://img.shields.io/badge/0x3F-MASTER%202189-orange?style=for-the-badge)](https://codeforces.com/profile/0x3F)
 
 
 ## 测试及对拍 Testing
@@ -277,9 +292,11 @@
 
 - 在 `main` 中调用 `run(os.Stdin, os.Stdout)` 来执行代码；
 - 测试时，将测试数据转换成 `strings.Reader` 当作输入，并用一个 `strings.Builder` 来接收输出，将这二者传入 `run` 中，然后就能比较输出与答案了；
-- 对拍时需要实现一个暴力算法 `runAC`，参数和 `run` 一样。通过[随机数据生成器](/main/testutil/rand.go)来生成数据，分别传入 `runAC` 和 `run`，通过比对各自的输出，来检查 `run` 中的问题。
+- 对拍时需要实现一个暴力算法 `runAC`，参数和 `run` 一样。通过 [随机数据生成器](/main/testutil/rand.go) 来生成数据，分别传入 `runAC` 和 `run`，通过比对各自的输出，来检查 `run` 中的问题。
 
 具体可以见 Codeforces 代码仓库 [main](/main)，所有非交互题的代码及其对应测试全部按照上述框架实现。
+
+例如：[1439C_test.go](/main/1400-1499/1439C_test.go)
 
 交互题的写法要复杂一些，需要把涉及输入输出的地方抽象成接口，详见 [interactive_problem](/copypasta/template/interactive_problem)。
 
@@ -311,6 +328,8 @@
 
 [CP-Algorithms](https://cp-algorithms.com/)
 
+[洛谷日报](https://www.craft.do/s/N0l80k2gv46Psq)
+
 [All the good tutorials found for Competitive Programming](https://codeforces.com/blog/entry/57282)
 
 [Codeforces Problem Topics](https://codeforces.com/blog/entry/55274)
@@ -334,20 +353,6 @@
 [洛谷原试炼场](https://www.luogu.com.cn/paste/0id3h6on)
 
 [Links of ICPC/CCPC Contests from China](https://codeforces.com/blog/entry/84429)
-
-### 洛谷日报
-
-[2021 年洛谷日报索引](https://www.luogu.com.cn/discuss/show/287888)
-
-[2020 年洛谷日报索引](https://www.luogu.com.cn/discuss/show/179788)
-
-[2019 年洛谷日报索引](https://www.luogu.com.cn/discuss/show/92685)
-
-[2018 年洛谷日报索引](https://www.luogu.com.cn/discuss/show/48491)
-
-### 高级竞赛算法
-
-[算法进阶课](https://www.acwing.com/activity/content/32/)
 
 ### AtCoder 版《挑战程序设计竞赛》
 
@@ -387,6 +392,8 @@ My GoLand `Live Templates` and `Postfix Completion` [settings](/misc/my_goland_t
 
 ### Useful Tools
 
+[GeoGebra 经典](https://www.geogebra.org/classic)
+
 [Draw Geometry](https://csacademy.com/app/geometry_widget/)
 
 [Draw Graph](https://csacademy.com/app/graph_editor/)
@@ -405,7 +412,7 @@ My GoLand `Live Templates` and `Postfix Completion` [settings](/misc/my_goland_t
 
 [Codeforces Visualizer](https://cfviz.netlify.app/)
 
-[Codeforces Solve Tracker](https://tom0727.gitee.io/cf-problems/)
+[Codeforces Solve Tracker](https://tom0727.github.io/cf-problems/)
 
 [Another Codeforces Solve Tracker](https://cftracker.netlify.app/contests)
 
@@ -419,6 +426,6 @@ My GoLand `Live Templates` and `Postfix Completion` [settings](/misc/my_goland_t
 
 [Elo rating system](https://en.wikipedia.org/wiki/Elo_rating_system#Theory)
 
-### Keep Healthy
+### Stay Healthy
 
 [Exercises!](https://musclewiki.org/)

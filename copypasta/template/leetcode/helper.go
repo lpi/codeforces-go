@@ -67,8 +67,10 @@ func lowerArgsFirstChar(funcDefineLine string) string {
 	return string(code)
 }
 
-// 替换常见变量名（数组、字符串等）
-func renameInputArgs(funcDefineLine string) string {
+var inputNameReplacer *strings.Replacer
+
+func init() {
+	// 替换常见变量名（数组、字符串等）
 	oldNew := []string{
 		// 数组、矩阵
 		"nums", "a",
@@ -77,12 +79,17 @@ func renameInputArgs(funcDefineLine string) string {
 		"nums3", "z",
 		"arr", "a",
 		"array", "a",
+		"scores", "a",
 		"stones", "a",
+		"cards", "a",
+		"prices", "a",
+		"beans", "a",
 		"mat", "a",
 		"matrix", "a",
 		"grid", "g",
 		"grid1", "g1",
 		"grid2", "g2",
+		"words", "a",
 
 		// 字符串
 		"word", "s",
@@ -92,11 +99,20 @@ func renameInputArgs(funcDefineLine string) string {
 		"s2", "y",
 
 		// 其余常见变量名
+		"num", "n",
+		"num1", "x",
+		"num2", "y",
+		"num3", "z",
+		"size", "n",
 		"edges", "es",
 		"points", "ps",
+		"pairs", "ps",
 		"queries", "qs",
-		"source", "src",
+		"startPos", "st",
+		"start", "st",
+		"source", "st",
 		"target", "tar",
+		"total", "tot",
 		"limit", "lim",
 		"index", "id",
 		"index1", "id1",
@@ -107,7 +123,12 @@ func renameInputArgs(funcDefineLine string) string {
 	for i := range oldNew {
 		oldNew[i] += " " // 由于要匹配变量名+空格+类型，为了防止修改到意外的位置，通过加一个空格来简单地实现匹配
 	}
-	return strings.NewReplacer(oldNew...).Replace(funcDefineLine)
+	inputNameReplacer = strings.NewReplacer(oldNew...)
+	inputNameReplacer.Replace("") // 触发内部的 buildOnce
+}
+
+func renameInputArgs(funcDefineLine string) string {
+	return inputNameReplacer.Replace(funcDefineLine)
 }
 
 func _parseReturnType(line string) string {
@@ -142,7 +163,7 @@ func modifyDefaultCode(code string, funcLos []int, funcList []modifyLineFunc, cu
 	for _, lo := range funcLos {
 		if tp := _parseReturnType(lines[lo]); tp != "" {
 			if tp == "int64" {
-				customFuncContent = "\tans := 0\n" + customFuncContent + " int64(ans)"
+				customFuncContent = "\tans := 0\n" + customFuncContent /* return */ + " int64(ans)"
 			}
 			lines[lo+1] = customFuncContent
 		}

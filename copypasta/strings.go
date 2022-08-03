@@ -15,7 +15,7 @@ import (
 
 todo NOI 一轮复习 II：字符串 https://www.luogu.com.cn/blog/ix-35/noi-yi-lun-fu-xi-ii-zi-fu-chuan
 金策 字符串算法选讲 https://www.bilibili.com/video/BV11K4y1p7a5 https://www.bilibili.com/video/BV19541177KU
-    PDF 见 misc
+    PDF 见 https://github.com/EndlessCheng/cp-pdf
 
 TIPS: 若处理原串比较困难，不妨考虑下反转后的串 https://codeforces.com/contest/873/problem/F
 
@@ -24,20 +24,7 @@ TIPS: 若处理原串比较困难，不妨考虑下反转后的串 https://codef
 https://en.wikipedia.org/wiki/Bitap_algorithm shift-or / shift-and / Baeza-Yates–Gonnet algorithm
 */
 
-func stringCollection() {
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
-	max := func(a, b int) int {
-		if a >= b {
-			return a
-		}
-		return b
-	}
-
+func _(min, max func(int, int) int) {
 	// 注：如果 s 是常量的话，由于其在编译期分配到只读段，对应的地址是无法写入的
 	unsafeToBytes := func(s string) []byte { return *(*[]byte)(unsafe.Pointer(&s)) }
 	unsafeToString := func(b []byte) string { return *(*string)(unsafe.Pointer(&b)) }
@@ -60,23 +47,26 @@ func stringCollection() {
 	//      anti-hash: 最好不要自然溢出 https://codeforces.com/blog/entry/4898
 	//      On the mathematics behind rolling hashes and anti-hash tests https://codeforces.com/blog/entry/60442
 	//      hash killer https://loj.ac/p/6758
+	//  Kapun's algorithm https://codeforces.com/blog/entry/99973
 	// 题目推荐 https://cp-algorithms.com/string/string-hashing.html#toc-tgt-7
 	// 模板题 https://www.luogu.com.cn/problem/P3370
 	// LC187 找出所有重复出现的长为 10 的子串 https://leetcode-cn.com/problems/repeated-dna-sequences/
 	// LC1044 最长重复子串（二分哈希）https://leetcode-cn.com/problems/longest-duplicate-substring/
 	// LC1554 只有一个不同字符的字符串 https://leetcode-cn.com/problems/strings-differ-by-one-character/
-	hash := func(s []byte) {
+	// 倒序哈希 https://leetcode-cn.com/problems/find-substring-with-given-hash-value/solution/dao-xu-hua-dong-chuang-kou-o1-kong-jian-xpgkp/
+	hash := func(s string) {
 		// 注意：由于哈希很容易被卡，能用其它方法实现尽量用其它方法
 		const prime uint64 = 1e8 + 7
 		powP := make([]uint64, len(s)+1) // powP[i] = prime^i
 		powP[0] = 1
-		preHash := make([]uint64, len(s)+1) // preHash[i] = hash(s[:i])
+		preHash := make([]uint64, len(s)+1) // preHash[i] = hash(s[:i]) 前缀哈希
 		for i, b := range s {
 			powP[i+1] = powP[i] * prime
-			preHash[i+1] = preHash[i]*prime + uint64(b)
+			preHash[i+1] = preHash[i]*prime + uint64(b) // 本质是秦九韶算法
 		}
 
-		// 计算子串 s[l:r] 的哈希
+		// 计算子串 s[l:r] 的哈希   0<=l<=r<=len(s)
+		// 空串的哈希值为 0
 		subHash := func(l, r int) uint64 { return preHash[r] - preHash[l]*powP[r-l] }
 		_ = subHash
 	}
@@ -99,7 +89,9 @@ func stringCollection() {
 	// 与计数 DP 结合 https://codeforces.com/problemset/problem/494/B
 	// https://codeforces.com/problemset/problem/1003/F
 	// http://acm.hdu.edu.cn/showproblem.php?pid=2087
-	calcMaxMatchLengths := func(s []byte) []int {
+	// 最大匹配个数 https://codeforces.com/problemset/problem/615/C
+	// 与贝尔数（集合划分）结合 https://codeforces.com/problemset/problem/954/I
+	calcMaxMatchLengths := func(s string) []int {
 		match := make([]int, len(s))
 		for i, c := 1, 0; i < len(s); i++ {
 			v := s[i]
@@ -114,15 +106,15 @@ func stringCollection() {
 		return match
 	}
 	// search pattern from text, return all start positions
-	kmpSearch := func(text, pattern []byte) (pos []int) {
+	kmpSearch := func(text, pattern string) (pos []int) {
 		match := calcMaxMatchLengths(pattern)
 		lenP := len(pattern)
 		c := 0
 		for i, v := range text {
-			for c > 0 && pattern[c] != v {
+			for c > 0 && pattern[c] != byte(v) {
 				c = match[c-1]
 			}
-			if pattern[c] == v {
+			if pattern[c] == byte(v) {
 				c++
 			}
 			if c == lenP {
@@ -133,22 +125,28 @@ func stringCollection() {
 		return
 	}
 	// EXTRA: 最小循环节
+	// 返回循环节以及循环次数
 	// http://poj.org/problem?id=2406 https://www.luogu.com.cn/problem/UVA455
-	calcMinPeriod := func(s []byte) int {
+	calcMinPeriod := func(s string) (string, int) {
 		n := len(s)
 		match := calcMaxMatchLengths(s)
-		if val := match[n-1]; val > 0 && n%(n-val) == 0 {
-			return n / (n - val)
+		if m := match[n-1]; m > 0 && n%(n-m) == 0 {
+			return s[:n-m], n / (n - m)
 		}
-		return 1 // 无小于 n 的循环节
+		return s, 1 // 无小于 n 的循环节
 	}
+
+	// todo 失配树（border 树）
+	//  https://www.luogu.com.cn/problem/P5829
 
 	// Z-function（扩展 KMP，Z-array）      exkmp
 	// z[i] = LCP(s, s[i:])   串与串后缀的最长公共前缀
 	// 参考 Competitive Programmer’s Handbook Ch.26
 	// https://oi-wiki.org/string/z-func/
+	// 可视化 https://personal.utdallas.edu/~besp/demo/John2010/z-algorithm.htm
 	// https://cp-algorithms.com/string/z-function.html
 	// https://www.geeksforgeeks.org/z-algorithm-linear-time-pattern-searching-algorithm/
+	//
 	// 模板题 https://codeforces.com/edu/course/2/lesson/3/3/practice/contest/272263/problem/A
 	//       https://www.luogu.com.cn/problem/P5410
 	// 最小循环节（允许末尾截断）https://codeforces.com/edu/course/2/lesson/3/4/practice/contest/272262/problem/A
@@ -167,11 +165,13 @@ func stringCollection() {
 	//		构造 t+s
 	// 最短的包含 s 和 t 的字符串 https://codeforces.com/edu/course/2/lesson/3/4/practice/contest/272262/problem/F
 	// 		构造 s+t 和 t+s
-	calcZ := func(s []byte) []int {
+	calcZ := func(s string) []int {
 		n := len(s)
 		z := make([]int, n)
 		for i, l, r := 1, 0, 0; i < n; i++ {
-			z[i] = max(0, min(z[i-l], r-i+1))
+			if i <= r {
+				z[i] = min(z[i-l], r-i+1)
+			}
 			for i+z[i] < n && s[z[i]] == s[i+z[i]] {
 				l, r = i, i+z[i]
 				z[i]++
@@ -180,8 +180,8 @@ func stringCollection() {
 		z[0] = n
 		return z
 	}
-	zSearch := func(text, pattern []byte) (pos []int) {
-		s := append(append(pattern, '#'), text...)
+	zSearch := func(text, pattern string) (pos []int) {
+		s := pattern + "#" + text
 		z := calcZ(s)
 		for i, l := range z[len(pattern)+1:] {
 			if l == len(pattern) {
@@ -195,10 +195,12 @@ func stringCollection() {
 	// 找到位置 i，从这个位置输出即得到字典序最小的串
 	// https://oi-wiki.org/string/minimal-string/
 	// 其他方法 https://codeforces.com/blog/entry/90035
-	// 模板题 https://www.luogu.com.cn/problem/P1368 http://poj.org/problem?id=1509
-	smallestRepresentation := func(s []byte) []byte {
+	// 模板题 https://www.luogu.com.cn/problem/P1368 http://poj.org/problem?id=1509 https://codeforces.com/gym/103585/problem/K
+	// https://codeforces.com/problemset/problem/496/B
+	smallestRepresentation := func(s string) string {
 		n := len(s)
-		s = append(s, s...)
+		s += s
+		// 如果要返回一个和原串不同的字符串，初始化 i=1, j=2
 		i := 0
 		for j := 1; j < n; {
 			k := 0
@@ -207,7 +209,7 @@ func stringCollection() {
 			if k >= n {
 				break
 			}
-			if s[i+k] < s[j+k] {
+			if s[i+k] < s[j+k] { // > 为字典序最大
 				// j 到 j+k 都不会是最小串的开头位置
 				j += k + 1
 			} else {
@@ -218,7 +220,10 @@ func stringCollection() {
 		return s[i : i+n]
 	}
 
-	// LC周赛259D https://leetcode-cn.com/problems/longest-subsequence-repeated-k-times/
+	// 子序列自动机
+	// LC727 https://leetcode-cn.com/problems/minimum-window-subsequence/
+	// LC792 https://leetcode-cn.com/problems/number-of-matching-subsequences/
+	// LC2014/周赛259D https://leetcode-cn.com/problems/longest-subsequence-repeated-k-times/
 	subsequenceAutomaton := func(s string) {
 		// build nxt
 		// nxt[i][j] 表示在 i 右侧的字符 j 的最近位置
@@ -234,6 +239,9 @@ func stringCollection() {
 
 		// 返回是 s 的子序列的最长的 t 的前缀的长度
 		match := func(t string) int {
+			if t == "" || s == "" {
+				return 0
+			}
 			i, j := 0, 0
 			if t[0] == s[0] {
 				j = 1
@@ -249,8 +257,8 @@ func stringCollection() {
 		_ = match
 	}
 
-	// 最长回文子串 Manacher
-	// 推荐 https://www.bilibili.com/video/BV1AX4y1F79W
+	// 最长回文子串 Manacher（马拉车算法）
+	// 【推荐】https://www.bilibili.com/video/BV1AX4y1F79W
 	// https://www.bilibili.com/video/BV1ft4y117a4
 	// https://oi-wiki.org/string/manacher/
 	// https://cp-algorithms.com/string/manacher.html
@@ -268,7 +276,7 @@ func stringCollection() {
 	//  https://codeforces.com/problemset/problem/1081/H
 	//  https://www.luogu.com.cn/blog/user25308/proof-cf1081h
 	//  LC1745/周赛226D 分割成三个非空回文子字符串 https://leetcode-cn.com/problems/palindrome-partitioning-iv/
-	manacher := func(s []byte) {
+	manacher := func(s string) {
 		// 将 s 改造为 t，这样就不需要分 len(s) 的奇偶来讨论了，因为新串 t 的每个回文子串都是奇回文串（都有回文中心）
 		// s 和 t 的下标转换关系：
 		// (si+1)*2 = ti
@@ -277,7 +285,7 @@ func stringCollection() {
 		// ti 为奇数对应偶回文串（从 3 开始）
 		t := append(make([]byte, 0, len(s)*2+3), '^')
 		for _, c := range s {
-			t = append(t, '#', c)
+			t = append(t, '#', byte(c))
 		}
 		t = append(t, '#', '$')
 
@@ -382,7 +390,7 @@ func stringCollection() {
 	CF 上的课程 https://codeforces.com/edu/course/2
 	CF tag https://codeforces.com/problemset?order=BY_RATING_ASC&tags=string+suffix+structures
 
-	题目总结：（部分参考《后缀数组——处理字符串的有力工具》，PDF 在 misc 文件夹下）
+	题目总结：（部分参考《后缀数组——处理字符串的有力工具》，PDF 见 https://github.com/EndlessCheng/cp-pdf）
 	单个字符串
 		模板题 https://www.luogu.com.cn/problem/P3809
 		可重叠最长重复子串 LC1044 https://leetcode-cn.com/problems/longest-duplicate-substring/ LC1062 https://leetcode-cn.com/problems/longest-repeating-substring/
@@ -392,9 +400,10 @@ func stringCollection() {
 			重要技巧：按照 height 分组，每组中根据 sa 来处理组内后缀的位置
 		可重叠的至少出现 k 次的最长重复子串 https://www.luogu.com.cn/problem/P2852 http://poj.org/problem?id=3261
 			二分答案，对 height 分组，判定组内元素个数不小于 k
-		本质不同子串个数 https://www.luogu.com.cn/problem/P2408 https://atcoder.jp/contests/practice2/tasks/practice2_i https://codeforces.com/edu/course/2/lesson/2/5/practice/contest/269656/problem/A LC1698 https://leetcode-cn.com/problems/number-of-distinct-substrings-in-a-string/
+		本质不同子串个数 https://www.luogu.com.cn/problem/P2408 https://www.luogu.com.cn/problem/SP694 https://atcoder.jp/contests/practice2/tasks/practice2_i https://codeforces.com/edu/course/2/lesson/2/5/practice/contest/269656/problem/A LC1698 https://leetcode-cn.com/problems/number-of-distinct-substrings-in-a-string/
 			枚举每个后缀，计算前缀总数，再减掉重复，即 height[i]
 			所以个数为 n*(n+1)/2-sum{height[i]} https://oi-wiki.org/string/sa/#_13
+			相似思路 LC2261 含最多 K 个可整除元素的子数组 https://leetcode-cn.com/problems/k-divisible-elements-subarrays/solution/by-freeyourmind-2m6j/
 		不同子串长度之和 https://codeforces.com/edu/course/2/lesson/3/4/practice/contest/272262/problem/H
 			思路同上，即 n*(n+1)*(n+2)/6-sum{height[i]*(height[i]+1)/2}
 		带限制的不同子串个数
@@ -417,7 +426,7 @@ func stringCollection() {
 		第 k 小子串 https://www.luogu.com.cn/problem/P3975 https://codeforces.com/problemset/problem/128/B
 			todo
 	两个字符串
-		最长公共子串 https://codeforces.com/edu/course/2/lesson/2/5/practice/contest/269656/problem/B http://poj.org/problem?id=2774 LC718 https://leetcode-cn.com/problems/maximum-length-of-repeated-subarray/
+		最长公共子串 SPOJ LCS https://www.luogu.com.cn/problem/SP1811 https://codeforces.com/edu/course/2/lesson/2/5/practice/contest/269656/problem/B http://poj.org/problem?id=2774 LC718 https://leetcode-cn.com/problems/maximum-length-of-repeated-subarray/
 			用 '#' 拼接两字符串，遍历 height[1:] 若 sa[i]<len(s1) != (sa[i-1]<len(s1)) 则更新 maxLen
 		长度不小于 k 的公共子串的个数 http://poj.org/problem?id=3415
 			单调栈
@@ -427,7 +436,7 @@ func stringCollection() {
 			todo
 		todo http://poj.org/problem?id=3729
 	多个字符串
-		多串最长公共子串 https://loj.ac/p/171 LC周赛248D https://leetcode-cn.com/problems/longest-common-subpath/ http://poj.org/problem?id=3450
+		多串最长公共子串 SPOJ LCS2 https://www.luogu.com.cn/problem/SP1812 https://loj.ac/p/171 LC1923/周赛248D https://leetcode-cn.com/problems/longest-common-subpath/ http://poj.org/problem?id=3450
 			拼接，二分答案，对 height 分组，判定组内元素对应不同字符串的个数等于字符串个数
 		不小于 k 个字符串中的最长子串 http://poj.org/problem?id=3294
 			拼接，二分答案，对 height 分组，判定组内元素对应不同字符串的个数不小于 k
@@ -445,14 +454,14 @@ func stringCollection() {
 	 https://www.luogu.com.cn/problem/P6095
 	 https://www.luogu.com.cn/problem/P4070
 	*/
-	suffixArray := func(s []byte) {
+	suffixArray := func(s string) {
 		n := len(s)
 
 		// 后缀数组 sa
 		// sa[i] 表示后缀字典序中的第 i 个字符串在 s 中的位置
 		// 特别地，后缀 s[sa[0]:] 字典序最小，后缀 s[sa[n-1]:] 字典序最大
-		//sa := *(*[]int)(unsafe.Pointer(reflect.ValueOf(suffixarray.New(s)).Elem().FieldByName("sa").UnsafeAddr()))
-		sa := *(*[]int32)(unsafe.Pointer(reflect.ValueOf(suffixarray.New(s)).Elem().FieldByName("sa").Field(0).UnsafeAddr()))
+		//sa := *(*[]int)(unsafe.Pointer(reflect.ValueOf(suffixarray.New([]byte(s))).Elem().FieldByName("sa").UnsafeAddr()))
+		sa := *(*[]int32)(unsafe.Pointer(reflect.ValueOf(suffixarray.New([]byte(s))).Elem().FieldByName("sa").Field(0).UnsafeAddr()))
 
 		// 后缀名次数组 rank
 		// 后缀 s[i:] 位于后缀字典序中的第 rank[i] 个
@@ -546,7 +555,7 @@ func stringCollection() {
 
 		// EXTRA: 可重叠最长重复子串
 		// https://leetcode-cn.com/problems/longest-duplicate-substring/ https://leetcode-cn.com/problems/longest-repeating-substring/
-		longestDupSubstring := func() []byte {
+		longestDupSubstring := func() string {
 			maxP, maxH := 0, 0
 			for i, h := range height {
 				if h > maxH {
@@ -692,3 +701,6 @@ func stringCollection() {
 		suffixArray, suffixArrayInt, suffixArrayInt2,
 	}
 }
+
+// AC 自动机见 trie.go
+// 后缀自动机见 sam.go

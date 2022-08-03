@@ -1,5 +1,7 @@
 package copypasta
 
+// 重新发明线段树 by 灵茶山艾府（8:36 开始）https://www.bilibili.com/video/BV18t4y1p736
+
 // 推荐阅读《算法竞赛进阶指南》0x43 和 0x48 节
 // https://oi-wiki.org/ds/seg/
 // https://cp-algorithms.com/data_structures/segment_tree.html
@@ -8,6 +10,7 @@ package copypasta
 // https://codeforces.com/blog/entry/89313
 // https://codeforces.com/blog/entry/15890
 // todo 高效线段树 crazySegmentTree https://codeforces.com/blog/entry/89399
+//  像使用 STL 一样使用线段树 https://zhuanlan.zhihu.com/p/459679512 https://zhuanlan.zhihu.com/p/459880950
 
 // 注：对于指针写法，必要时禁止 GC，能加速不少
 // func init() { debug.SetGCPercent(-1) }
@@ -15,6 +18,7 @@ package copypasta
 // 最值及其下标 https://codeforces.com/contest/474/problem/E
 // 最大子段和 https://codeforces.com/edu/course/2/lesson/4/2/practice/contest/273278/problem/A https://www.acwing.com/problem/content/246/ https://www.luogu.com.cn/problem/P4513
 // 最大子段和+按位或 https://www.luogu.com.cn/problem/P7492 (https://www.luogu.com.cn/contest/42328)
+// 最长连续相同子串 LC2213/周赛285D https://leetcode-cn.com/problems/longest-substring-of-one-repeating-character/
 // 开方 https://codeforces.com/problemset/problem/920/F https://www.luogu.com.cn/problem/P4145 http://acm.hdu.edu.cn/showproblem.php?pid=4027
 // 取模 https://codeforces.com/problemset/problem/438/D
 // 转换的好题 https://codeforces.com/problemset/problem/1187/D
@@ -159,7 +163,7 @@ func (t seg) queryFirstLessPosInRange(o, l, r, v int) int {
 		}
 	}
 	if m < r {
-		if pos := t.queryFirstLessPosInRange(o<<1|1, l, r, v); pos > 0 {
+		if pos := t.queryFirstLessPosInRange(o<<1|1, l, r, v); pos > 0 { // 注：这里 pos > 0 的判断可以省略，因为 pos == 0 时最后仍然会返回 0
 			return pos
 		}
 	}
@@ -169,25 +173,26 @@ func (t seg) queryFirstLessPosInRange(o, l, r, v int) int {
 //
 
 // 延迟标记（区间修改）
+// 【有关区间 flip 的 0-1 线段树，见 segment_tree01.go】
 // 单个更新操作：
 // + min/max https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/A
 //           https://codeforces.com/problemset/problem/1321/E
 //           https://codeforces.com/problemset/problem/52/C
 // + min/max 转换 https://codeforces.com/gym/294041/problem/E
 // + max DP https://atcoder.jp/contests/dp/tasks/dp_w
-// + Σ https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/D https://www.luogu.com.cn/problem/P3372
+// + ∑ https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/D https://www.luogu.com.cn/problem/P3372
 // | & https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/C
 // = min https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/E
-// = Σ https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/F https://codeforces.com/problemset/problem/558/E
+// = ∑ https://codeforces.com/edu/course/2/lesson/5/2/practice/contest/279653/problem/F https://codeforces.com/problemset/problem/558/E
 // max max 离散化 https://codeforces.com/contest/1557/problem/D
 // https://codeforces.com/problemset/problem/1114/F
 // + 某个区间的不小于 x 的最小下标 https://codeforces.com/edu/course/2/lesson/5/3/practice/contest/280799/problem/C
 // =max 求和的 O(log^2) 性质 https://codeforces.com/contest/1439/problem/C
-// 矩阵乘法 Σ https://codeforces.com/problemset/problem/718/C
+// 矩阵乘法 ∑ https://codeforces.com/problemset/problem/718/C
 //
 // 多个更新操作复合：
-// * + Σ https://www.luogu.com.cn/problem/P3373 https://leetcode-cn.com/problems/fancy-sequence/
-// = + Σ https://codeforces.com/edu/course/2/lesson/5/4/practice/contest/280801/problem/A
+// * + ∑ https://www.luogu.com.cn/problem/P3373 https://leetcode-cn.com/problems/fancy-sequence/
+// = + ∑ https://codeforces.com/edu/course/2/lesson/5/4/practice/contest/280801/problem/A
 //
 // 吉老师线段树 Segment Tree Beats
 // todo https://oi-wiki.org/ds/seg-beats/
@@ -197,22 +202,22 @@ func (t seg) queryFirstLessPosInRange(o, l, r, v int) int {
 //
 // EXTRA: 多项式更新 Competitive Programmer’s Handbook Ch.28
 // 比如区间加等差数列（差分法）https://www.luogu.com.cn/problem/P1438 https://codeforces.com/edu/course/2/lesson/5/4/practice/contest/280801/problem/B
-type lazyST []struct {
+type lazySeg []struct {
 	l, r int
 	todo int64
 	sum  int64
 }
 
-func (lazyST) op(a, b int64) int64 {
+func (lazySeg) op(a, b int64) int64 {
 	return a + b // % mod
 }
 
-func (t lazyST) maintain(o int) {
+func (t lazySeg) maintain(o int) {
 	lo, ro := t[o<<1], t[o<<1|1]
 	t[o].sum = t.op(lo.sum, ro.sum)
 }
 
-func (t lazyST) build(a []int64, o, l, r int) {
+func (t lazySeg) build(a []int64, o, l, r int) {
 	t[o].l, t[o].r = l, r
 	if l == r {
 		t[o].sum = a[l-1]
@@ -224,13 +229,13 @@ func (t lazyST) build(a []int64, o, l, r int) {
 	t.maintain(o)
 }
 
-func (t lazyST) do(o int, add int64) {
+func (t lazySeg) do(o int, add int64) {
 	to := &t[o]
 	to.todo += add                     // % mod
 	to.sum += int64(to.r-to.l+1) * add // % mod
 }
 
-func (t lazyST) spread(o int) {
+func (t lazySeg) spread(o int) {
 	if add := t[o].todo; add != 0 {
 		t.do(o<<1, add)
 		t.do(o<<1|1, add)
@@ -239,26 +244,26 @@ func (t lazyST) spread(o int) {
 }
 
 // 如果维护的数据（或者判断条件）具有单调性，我们就可以在线段树上二分
-// 未找到时返回 n+1
+// 下面代码返回 [l,r] 内第一个值不低于 val 的下标（未找到时返回 n+1）
 // o=1  [l,r] 1<=l<=r<=n
 // https://codeforces.com/problemset/problem/1179/C
-func (t lazyST) binarySearch(o, l, r int, val int64) int {
+func (t lazySeg) lowerBound(o, l, r int, val int64) int {
 	if t[o].l == t[o].r {
-		if val <= t[o].sum {
+		if t[o].sum >= val {
 			return t[o].l
 		}
 		return t[o].l + 1
 	}
 	t.spread(o)
-	// 注意判断对象是当前节点还是子节点
-	if val <= t[o<<1].sum {
-		return t.binarySearch(o<<1, l, r, val)
+	// 注意判断比较的对象是当前节点还是子节点，是先递归左子树还是右子树
+	if t[o<<1].sum >= val {
+		return t.lowerBound(o<<1, l, r, val)
 	}
-	return t.binarySearch(o<<1|1, l, r, val)
+	return t.lowerBound(o<<1|1, l, r, val)
 }
 
 // o=1  [l,r] 1<=l<=r<=n
-func (t lazyST) update(o, l, r int, add int64) {
+func (t lazySeg) update(o, l, r int, add int64) {
 	if l <= t[o].l && t[o].r <= r {
 		t.do(o, add)
 		return
@@ -275,7 +280,7 @@ func (t lazyST) update(o, l, r int, add int64) {
 }
 
 // o=1  [l,r] 1<=l<=r<=n
-func (t lazyST) query(o, l, r int) int64 {
+func (t lazySeg) query(o, l, r int) int64 {
 	if l <= t[o].l && t[o].r <= r {
 		return t[o].sum
 	}
@@ -292,17 +297,17 @@ func (t lazyST) query(o, l, r int) int64 {
 	return t.op(vl, vr)
 }
 
-func (t lazyST) queryAll() int64 { return t[1].sum }
+func (t lazySeg) queryAll() int64 { return t[1].sum }
 
 // a 从 0 开始
-func newLazySegmentTree(a []int64) lazyST {
-	t := make(lazyST, 4*len(a))
+func newLazySegmentTree(a []int64) lazySeg {
+	t := make(lazySeg, 4*len(a))
 	t.build(a, 1, 1, len(a))
 	return t
 }
 
 // EXTRA: 适用于需要提取所有元素值的场景
-func (t lazyST) spreadAll(o int) {
+func (t lazySeg) spreadAll(o int) {
 	if t[o].l == t[o].r {
 		return
 	}
@@ -695,6 +700,7 @@ func (o *pstNode) countMode(old *pstNode, k int) (mode, count int) {
 //   https://zhuanlan.zhihu.com/p/29876526
 //   https://zhuanlan.zhihu.com/p/29937723
 //   https://codeforces.com/blog/entry/18051 Efficient and easy segment trees
+//   https://codeforces.com/blog/entry/100454 Even more efficient but not so easy segment trees
 
 //
 

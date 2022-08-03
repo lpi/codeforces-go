@@ -11,6 +11,10 @@ import (
 若能将此解的应用场景扩大到原问题的状态空间，并且扩展过程的每个步骤具有相似性，就可以考虑使用递推或递归求解。
 换句话说，程序在每个步骤上应该面对相同种类的问题，这些问题都是原问题的一个「子问题」，可能仅在规模或者某些限制条件上有所区别，并且能够使用「求解原问题的程序」进行求解。
 
+Self-Avoiding Walk https://mathworld.wolfram.com/Self-AvoidingWalk.html
+
+COUNTING SELF-AVOIDING WALKS https://arxiv.org/pdf/1304.7216.pdf
+
 https://oeis.org/A096969 Number of directed Hamiltonian paths in (n X n)-grid graph
 1, 8, 40, 552, 8648, 458696, 27070560, 6046626568, 1490832682992, 1460089659025264, 1573342970540617696, 6905329711608694708440, 33304011435341069362631160, 663618176813467308855850585056, 14527222735920532980525200234503048
 
@@ -19,6 +23,12 @@ https://oeis.org/A236753 Number of simple (non-intersecting) directed paths in (
 
 https://oeis.org/A001411 Number of n-step self-avoiding walks on square lattice
 1, 4, 12, 36, 100, 284, 780, 2172, 5916, 16268, 44100, 120292, 324932, 881500, 2374444, 6416596, 17245332, 46466676, 124658732, 335116620, 897697164, 2408806028, 6444560484, 17266613812, 46146397316, 123481354908, 329712786220, 881317491628
+
+https://oeis.org/A046170 Number of self-avoiding walks on a 2-D lattice of length n which start at the origin, take first step in the {+1,0} direction and whose vertices are always nonnegative in x and y
+1, 2, 5, 12, 30, 73, 183, 456, 1151, 2900, 7361, 18684, 47652, 121584, 311259, 797311, 2047384, 5260692, 13542718, 34884239, 89991344, 232282110, 600281932, 1552096361, 4017128206, 10401997092, 26957667445, 69892976538
+
+https://oeis.org/A007764 Number of non-intersecting (or self-avoiding) rook paths joining opposite corners of an n X n grid
+1, 2, 12, 184, 8512, 1262816, 575780564, 789360053252, 3266598486981642, 41044208702632496804, 1568758030464750013214100, 182413291514248049241470885236, 64528039343270018963357185158482118, 69450664761521361664274701548907358996488
 
 Number of simple (non-intersecting) directed paths [of length n] in (n X n)-grid graph
 1, 8, 44, 232, 972, 4008, 14932, 55104, 191068, 657848 [10], 2176716, 7157296, 22902052, 72898328, 227471396, 706797600, 2162946116
@@ -535,10 +545,13 @@ func searchCollection() {
 		return perm
 	}
 
-	//
+	// 迭代加深搜索
+	// 限制 DFS 深度（不断提高搜索深度）
+	// http://poj.org/problem?id=2248
 
 	// 折半枚举/双向搜索 Meet in the middle
 	// https://codeforces.com/problemset/problem/327/E
+	// LC805 https://leetcode-cn.com/problems/split-array-with-same-average/
 
 	// 折半枚举 - 超大背包问题
 	// https://atcoder.jp/contests/abc184/tasks/abc184_f
@@ -632,13 +645,12 @@ func searchCollection() {
 		return
 	}
 
-	//
-
 	// 剪枝:
 	// todo https://blog.csdn.net/weixin_43914593/article/details/104613920 算法竞赛专题解析（7）：搜索进阶(2)--剪枝
 
 	// A*:
 	// todo https://blog.csdn.net/weixin_43914593/article/details/104935011 算法竞赛专题解析（9）：搜索进阶(4)--A*搜索
+	//  https://www.redblobgames.com/pathfinding/a-star/introduction.html
 
 	// 舞蹈链 Dancing Links
 	// https://en.wikipedia.org/wiki/Dancing_Links
@@ -648,8 +660,9 @@ func searchCollection() {
 	//       https://www.cnblogs.com/grenet/p/3145800.html
 	//       https://www.cnblogs.com/grenet/p/3163550.html
 	// 模板题+讲解
-	//       http://hihocoder.com/contest/hiho101/problem/1
+	//       todo http://hihocoder.com/contest/hiho101/problem/1
 	//       http://hihocoder.com/contest/hiho102/problem/1
+	//       https://www.luogu.com.cn/problem/P4929
 
 	// 对抗搜索与 Alpha-Beta 剪枝
 	// https://www.luogu.com.cn/blog/pks-LOVING/zhun-bei-tou-ri-bao-di-fou-qi-yan-di-blog
@@ -670,20 +683,7 @@ func searchCollection() {
 枚举大小为 k 的子集
 枚举格点周围（曼哈顿距离、切比雪夫距离）
 */
-func loopCollection() {
-	min := func(a, b int) int {
-		if a < b {
-			return a
-		}
-		return b
-	}
-	max := func(a, b int) int {
-		if a > b {
-			return a
-		}
-		return b
-	}
-
+func _(min, max func(int, int) int) {
 	// 枚举 {0,1,...,n-1} 的全部子集
 	loopSet := func(a []int) {
 		n := len(a)
@@ -710,6 +710,15 @@ func loopCollection() {
 			// do(sub)...
 
 			sub = (sub - 1) & set
+		}
+
+		// 所有子集（写法二）
+		for sub := set; ; sub = (sub - 1) & set {
+			// do(sub)...
+
+			if sub == 0 {
+				break
+			}
 		}
 
 		// 非空子集
@@ -741,7 +750,7 @@ func loopCollection() {
 				}
 				has[v] = true
 				for w := v; w > 0; w &= w - 1 {
-					f(v &^ (w & -w))
+					f(v ^ w&-w)
 				}
 			}
 			//for _, v := range a {
@@ -758,7 +767,7 @@ func loopCollection() {
 		}
 	}
 
-	// Gosper’s Hack：枚举大小为 n 的集合的大小为 k 的子集（按字典序）
+	// Gosper's Hack：枚举大小为 n 的集合的大小为 k 的子集（按字典序）
 	// https://en.wikipedia.org/wiki/Combinatorial_number_system#Applications
 	// 参考《挑战程序设计竞赛》p.156-158 的实现
 	// 把除法改成右移 bits.TrailingZeros 可以快好几倍
@@ -896,6 +905,7 @@ func loopCollection() {
 
 	// 第一排在左上，最后一排在右下
 	// 每排从左下到右上
+	// LC498 https://leetcode.cn/problems/diagonal-traverse/
 	loopAntiDiagonal := func(n, m int) {
 		for s := 0; s < n+m-1; s++ {
 			l := max(0, s-n+1)
@@ -992,7 +1002,8 @@ func gridCollection() {
 
 	// 矩形网格图，返回从起点 (s.x,s.y) 到其余所有可达点的最短距离。'#' 表示无法通过的格子   bfsGridAll 单源最短距离
 	// https://codeforces.com/contest/1520/problem/G
-	disAll := func(g [][]byte, s pair) [][]int {
+	// https://leetcode-cn.com/problems/k-highest-ranked-items-within-a-price-range/
+	disAll := func(g [][]byte, sx, sy int) [][]int {
 		n, m := len(g), len(g[0])
 		dis := make([][]int, n)
 		for i := range dis {
@@ -1001,15 +1012,15 @@ func gridCollection() {
 				dis[i][j] = -1
 			}
 		}
-		dis[s.x][s.y] = 0
-		q := []pair{s}
-		for curD := 1; len(q) > 0; curD++ {
+		dis[sx][sy] = 0
+		q := []pair{{sx, sy}}
+		for step := 1; len(q) > 0; step++ {
 			tmp := q
 			q = nil
 			for _, p := range tmp {
 				for _, d := range dir4 {
 					if x, y := p.x+d.x, p.y+d.y; 0 <= x && x < n && 0 <= y && y < m && g[x][y] != '#' && dis[x][y] < 0 { //
-						dis[x][y] = curD
+						dis[x][y] = step
 						q = append(q, pair{x, y})
 					}
 				}
@@ -1023,7 +1034,7 @@ func gridCollection() {
 	// t 也可是别的东西，比如某个特殊符号等
 	// https://ac.nowcoder.com/acm/contest/6781/B
 	// https://atcoder.jp/contests/abc184/tasks/abc184_e
-	disST := func(g [][]byte, s pair, t pair) int {
+	disST := func(g [][]byte, sx, sy, tx, ty int) int {
 		n, m := len(g), len(g[0])
 		const inf int = 1e9 // 1e18
 
@@ -1031,18 +1042,21 @@ func gridCollection() {
 		for i := range vis {
 			vis[i] = make([]bool, m)
 		}
-		vis[s.x][s.y] = true
-		q := []pair{s}
-		for minDis := 0; len(q) > 0; minDis++ {
+		vis[sx][sy] = true
+		q := []pair{{sx, sy}}
+		for step := 0; len(q) > 0; step++ {
 			tmp := q
 			q = nil
 			for _, p := range tmp {
 				// g[p.x][p.y] == 'T'
-				if p == t {
-					return minDis
+				if p.x == tx && p.y == ty {
+					return step
 				}
 				for _, d := range dir4 {
 					if xx, yy := p.x+d.x, p.y+d.y; 0 <= xx && xx < n && 0 <= yy && yy < m && !vis[xx][yy] && g[xx][yy] != '#' { //
+						//if p.x == tx && p.y == ty {
+						//	return step
+						//}
 						vis[xx][yy] = true
 						q = append(q, pair{xx, yy})
 					}
@@ -1109,28 +1123,29 @@ func gridCollection() {
 	}
 
 	// 下列代码来自 LC1254/周赛162C https://leetcode-cn.com/problems/number-of-closed-islands/
-	// NOTE: 对于搜索格子的题，可以不用创建 vis 而是通过修改格子的值为范围外的值（如零、负数、'#' 等）来做到这一点
-	dfsValidGrids := func(g [][]byte) (comps int) {
+	// NOTE: 对于搜索格子的题，可以不用创建 vis 而是通过修改格子的值为范围外的值（如零、负数、'#' 等）来做到这一点  dfsGrid
+	dfsValidGrids := func(g [][]byte) (comps [][]pair) {
 		n, m := len(g), len(g[0])
 		vis := make([][]bool, n)
 		for i := range vis {
 			vis[i] = make([]bool, m)
 		}
-		const target byte = '.'
-		//var targetsPos []point
-		var f func(i, j int) bool
+		const validCell byte = '.'
+		var comp []pair
+		var f func(int, int) bool
 		f = func(i, j int) bool {
 			if i < 0 || i >= n || j < 0 || j >= m {
 				return false
-			} // 出边界的不算
-			if vis[i][j] || g[i][j] != target {
+			}
+			if vis[i][j] || g[i][j] != validCell {
 				return true
-			} // 已访问或到达合法边界
+			}
 			vis[i][j] = true
-			//targetsPos = append(targetsPos, point{i, j})
+			comp = append(comp, pair{i, j})
 			validCC := true
 			for _, d := range dir4 {
-				if !f(i+d.x, j+d.y) {
+				x, y := i+d.x, j+d.y
+				if !f(x, y) {
 					validCC = false // 遍历完该连通分量再 return，保证不重不漏
 				}
 			}
@@ -1138,11 +1153,11 @@ func gridCollection() {
 		}
 		for i, row := range g {
 			for j, v := range row {
-				if v == target && !vis[i][j] {
-					//targetsPos = []point{}
+				if v == validCell && !vis[i][j] {
+					comp = []pair{}
 					if f(i, j) {
-						comps++
-						// do targetsPos...
+						comps = append(comps, comp)
+						// do comp ...
 					}
 				}
 			}
